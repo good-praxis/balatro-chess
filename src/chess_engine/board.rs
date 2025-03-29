@@ -751,7 +751,7 @@ mod tests {
             by: Piece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::Black,
-                pos: Pos::new(0, 4),
+                pos: Pos::new(0, 0),
             },
             capturing: Some(Piece {
                 piece_type: PieceType::Rook,

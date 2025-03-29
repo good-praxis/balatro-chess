@@ -263,7 +263,7 @@ impl Board {
         const BISHOP_WEIGHT: i32 = 60;
         const KNIGHT_WEIGHT: i32 = 60;
         const PAWN_WEIGHT: i32 = 20;
-        const ISOLATED_PAWN_WEIGHT: i32 = 1;
+        const ISOLATED_PAWN_WEIGHT: i32 = 5;
         const MOVEMENT_WEIGHT: i32 = 1;
 
         // TODO: reweight pawn startegic positions
@@ -392,13 +392,66 @@ impl Board {
         moves
     }
 
+    pub fn capturing_move_list(&self) -> Vec<Move> {
+        let mut moves = vec![];
+        for piece in self.board.clone().iter().flatten() {
+            if piece.color == self.next_move_by {
+                if let Some(these_moves) = self.get_moves_for_pos(piece.pos) {
+                    for this_move in these_moves {
+                        if this_move.capturing.is_some() {
+                            moves.push(this_move)
+                        }
+                    }
+                }
+            }
+        }
+        moves
+    }
+
     pub fn search_next_move(&self, depth: i8) -> (i32, Option<Move>) {
         self.alpha_beta(i32::MIN, i32::MAX, depth)
     }
 
+    fn quiescence_search(&self, mut alpha: i32, beta: i32) -> i32 {
+        let eval = self.evaluate();
+        let mut best_score = eval;
+
+        // beta cutoff
+        if eval >= beta {
+            return beta;
+        }
+        if alpha < eval {
+            alpha = eval;
+        }
+
+        let mut sim_board = self.clone();
+        for this_move in self.capturing_move_list() {
+            sim_board.apply_move(this_move);
+            let score = sim_board
+                .quiescence_search(beta.saturating_neg(), alpha.saturating_neg())
+                .saturating_neg();
+            sim_board.rewind_last_move();
+
+            if score > best_score {
+                best_score = score;
+                if score > alpha {
+                    alpha = score;
+                }
+            }
+            if score >= beta {
+                return best_score;
+            }
+        }
+
+        best_score
+    }
+
     fn alpha_beta(&self, mut alpha: i32, beta: i32, depth: i8) -> (i32, Option<Move>) {
         if depth == 0 {
-            return (self.evaluate(), self.moves.last().cloned());
+            return (
+                self.quiescence_search(alpha, beta),
+                self.moves.last().cloned(),
+            );
         };
 
         let mut sim_board = self.clone();
@@ -582,8 +635,8 @@ mod tests {
             r#"
             PPPPP
             00p00
-            p0p0p
-            p0p0p
+            p000p
+            p000p
             "#,
             5,
         );
@@ -692,5 +745,37 @@ mod tests {
 
         assert!(next_move.1.is_some());
         assert_eq!(next_move.1, Some(expected_move));
+    }
+
+    #[test]
+    fn quiescence_search_prevents_losses() {
+        let board = Board::from_str(
+            r#"
+                R0000Q
+                00000p
+                q00000
+                000000
+                000000
+                "#,
+            6,
+        );
+
+        let next_move = board.search_next_move(1);
+        let avoided_capture = super::Move {
+            move_to: MoveTo {
+                from: Pos::new(2, 0),
+                to: Pos::new(0, 0),
+            },
+            by: PieceColor::White,
+            capturing: Some(Piece {
+                piece_type: PieceType::Rook,
+                color: PieceColor::Black,
+                pos: Pos::new(0, 0),
+            }),
+            en_passant_flag: false,
+        };
+
+        assert!(next_move.1.is_some());
+        assert_ne!(next_move.1, Some(avoided_capture));
     }
 }

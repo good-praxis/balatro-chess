@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use super::pieces::Piece;
 
 /// Valid position on the board
@@ -44,8 +46,50 @@ pub struct Move {
 }
 
 impl PartialOrd for Move {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        todo!()
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // using MVV_LVA
+        match (self.capturing, other.capturing) {
+            (None, Some(_)) => return Some(Ordering::Less),
+            (Some(_), None) => return Some(Ordering::Greater),
+            (None, None) => return Some(self.by.attacker_cmp(&other.by)),
+            _ => Some(
+                self.capture_sorting_value()
+                    .cmp(&other.capture_sorting_value()),
+            ),
+        }
+    }
+}
+
+impl Ord for Move {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl Move {
+    fn capture_sorting_value(&self) -> u8 {
+        use super::pieces::PieceType;
+        if let Some(captured) = self.capturing {
+            let victim_value = match captured.piece_type {
+                PieceType::Queen => 25,
+                PieceType::Rook => 19,
+                PieceType::Bishop => 13,
+                PieceType::Knight => 7,
+                PieceType::Pawn(_) => 1,
+                _ => 0,
+            };
+            let attacker_value = match self.by.piece_type {
+                PieceType::Queen => 1,
+                PieceType::Rook => 2,
+                PieceType::Bishop => 3,
+                PieceType::Knight => 4,
+                PieceType::Pawn(_) => 5,
+                _ => 0,
+            };
+            return victim_value + attacker_value;
+        } else {
+            0
+        }
     }
 }
 

@@ -1,3 +1,5 @@
+use std::{cmp::Ordering, mem};
+
 use super::{
     board::Board,
     moves::{Move, MoveVec, Pos},
@@ -34,6 +36,20 @@ impl Piece {
             (PieceType::Pawn(_), PieceColor::White) => 'p',
             (PieceType::Pawn(_), PieceColor::Black) => 'P',
         }
+    }
+
+    /// Used with MVV-LVA for move ordering.
+    /// Uses the discriminant from the enum to compare
+    pub fn attacker_cmp(&self, other: &Self) -> Ordering {
+        self.piece_type
+            .discriminant()
+            .cmp(&other.piece_type.discriminant())
+    }
+
+    /// Used with MVV-LVA for move ordering.
+    /// inverse of `attacker_cmp`
+    pub fn victim_cmp(&self, other: &Self) -> Ordering {
+        self.attacker_cmp(other).reverse()
     }
 
     /// The generated moves do not perform any checking checks, however vector attacks do stop at collisions
@@ -287,6 +303,7 @@ impl Piece {
     }
 }
 
+#[repr(u8)]
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PieceType {
     King,
@@ -296,6 +313,14 @@ pub enum PieceType {
     Knight,
     /// bool tracks if pawn can take two steps forwards
     Pawn(bool),
+}
+impl PieceType {
+    fn discriminant(&self) -> u8 {
+        // SAFETY: Because `Self` is marked `repr(u8)`, its layout is a `repr(C)` `union`
+        // between `repr(C)` structs, each of which has the `u8` discriminant as its first
+        // field, so we can read the discriminant without offsetting the pointer.
+        unsafe { *<*const _>::from(self).cast::<u8>() }
+    }
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]

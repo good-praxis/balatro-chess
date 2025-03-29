@@ -1,6 +1,7 @@
 use super::moves::{Move, MoveVec, Pos};
 use super::pieces::{Piece, PieceColor, PieceType};
 use bevy::prelude::*;
+use std::collections::BinaryHeap;
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -393,6 +394,19 @@ impl Board {
         moves
     }
 
+    /// applies MVV-LVA on the unsorted move list
+    pub fn sorted_move_list(&self) -> BinaryHeap<Move> {
+        let mut moves = BinaryHeap::new();
+        for piece in self.board.clone().iter().flatten() {
+            if piece.color == self.next_move_by {
+                if let Some(these_moves) = self.get_moves_for_pos(piece.pos) {
+                    moves.extend(these_moves);
+                }
+            }
+        }
+        moves
+    }
+
     pub fn capturing_move_list(&self) -> Vec<Move> {
         let mut moves = vec![];
         for piece in self.board.clone().iter().flatten() {
@@ -458,7 +472,7 @@ impl Board {
         let mut sim_board = self.clone();
 
         let mut best_move = (i32::MIN, None);
-        for this_move in self.unsorted_move_list() {
+        for this_move in self.sorted_move_list() {
             sim_board.apply_move(this_move);
             let score = sim_board
                 .alpha_beta(beta.saturating_neg(), alpha.saturating_neg(), depth - 1)

@@ -47,14 +47,14 @@ fn print_and_play(
     mut debug_flags: ResMut<DebugFlags>,
 ) {
     if debug_flags.running {
-        std::thread::sleep(Duration::from_secs_f32(2.0));
+        std::thread::sleep(Duration::from_secs_f32(0.5));
         if let Some(next_move) = board.search_next_move(1).1 {
             board.apply_move(next_move);
             query.single_mut().0 = board.to_string();
         } else {
             let mut string = board.to_string();
-            string.push_str(&format!("{:?} lost!", board.next_move_by));
-            query.single_mut().0 = board.to_string();
+            string.push_str(&format!("\n{:?} lost!", board.next_move_by));
+            query.single_mut().0 = string;
             debug_flags.running = false;
         }
     }

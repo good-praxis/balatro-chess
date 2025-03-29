@@ -1,4 +1,4 @@
-use super::pieces::{Piece, PieceColor};
+use super::pieces::Piece;
 
 /// Valid position on the board
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,11 +36,17 @@ pub struct MoveVec {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Move {
     pub move_to: MoveTo,
-    pub by: PieceColor,
+    pub by: Piece,
     /// Set if a move takes an opponent's piece
     pub capturing: Option<Piece>,
     /// Set if this move allows a pawn to be attacked via en passant
     pub en_passant_flag: bool,
+}
+
+impl PartialOrd for Move {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

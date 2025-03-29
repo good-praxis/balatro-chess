@@ -253,7 +253,7 @@ impl Piece {
     fn move_to_pos(&self, pos: Pos) -> Move {
         Move {
             move_to: self.pos.move_to(&pos),
-            by: self.color,
+            by: *self,
             capturing: None,
             en_passant_flag: false,
         }
@@ -262,7 +262,7 @@ impl Piece {
     fn move_to_pos_en_passant(&self, pos: Pos) -> Move {
         Move {
             move_to: self.pos.move_to(&pos),
-            by: self.color,
+            by: *self,
             capturing: None,
             en_passant_flag: true,
         }
@@ -271,7 +271,7 @@ impl Piece {
     fn move_capture(&self, piece: &Piece) -> Move {
         Move {
             move_to: self.pos.move_to(&piece.pos),
-            by: self.color,
+            by: *self,
             capturing: Some(*piece),
             en_passant_flag: false,
         }
@@ -280,7 +280,7 @@ impl Piece {
     fn move_to_while_capturing(&self, pos: Pos, piece: &Piece) -> Move {
         Move {
             move_to: self.pos.move_to(&pos),
-            by: self.color,
+            by: *self,
             capturing: Some(*piece),
             en_passant_flag: false,
         }
@@ -520,7 +520,11 @@ mod tests {
                 from: Pos::new(0, 0),
                 to: Pos::new(2, 0),
             },
-            by: PieceColor::Black,
+            by: Piece {
+                piece_type: PieceType::Pawn(true),
+                color: PieceColor::Black,
+                pos: Pos::new(0, 0),
+            },
             capturing: None,
             en_passant_flag: true,
         });

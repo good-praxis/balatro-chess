@@ -171,7 +171,7 @@ impl Board {
         }
 
         // if there is no king (i.e. simulations, tests), ignore legality checks
-        if self.king_map.get(&moves[0].by).is_none() {
+        if self.king_map.get(&moves[0].by.color).is_none() {
             return moves;
         }
 
@@ -183,13 +183,14 @@ impl Board {
             for tile in sim_board.board.iter() {
                 if let Some(piece) = tile {
                     // We only care about the other color
-                    if piece.color != this_move.by {
+                    if piece.color != this_move.by.color {
                         // We don't really care if the opponents move is legal, just if the king is threatened
                         let moves = piece.generate_pseudolegal_moves(&sim_board);
 
                         // if any of the pseudolegal moves contain the king's position, it is threatened
                         if moves.iter().any(|next_move| {
-                            next_move.move_to.to == *sim_board.king_map.get(&this_move.by).unwrap()
+                            next_move.move_to.to
+                                == *sim_board.king_map.get(&this_move.by.color).unwrap()
                         }) {
                             // Rewind the applied move, try next one
                             sim_board.rewind_last_move();
@@ -548,12 +549,17 @@ mod tests {
             2,
         );
         let dest = Pos::new(0, 0);
+        let start = Pos::new(1, 1);
         let this_move = super::Move {
             move_to: MoveTo {
-                from: Pos::new(1, 1),
+                from: start,
                 to: dest,
             },
-            by: PieceColor::White,
+            by: Piece {
+                piece_type: PieceType::Pawn(true),
+                color: PieceColor::White,
+                pos: start,
+            },
             capturing: Some(Piece {
                 piece_type: PieceType::Pawn(true),
                 color: PieceColor::Black,
@@ -591,7 +597,11 @@ mod tests {
                 from: Pos::new(1, 1),
                 to: Pos::new(0, 0),
             },
-            by: PieceColor::White,
+            by: Piece {
+                piece_type: PieceType::Pawn(true),
+                color: PieceColor::White,
+                pos: Pos::new(1, 1),
+            },
             capturing: Some(Piece {
                 piece_type: PieceType::Pawn(true),
                 color: PieceColor::Black,
@@ -701,7 +711,11 @@ mod tests {
                 from: Pos::new(1, 1),
                 to: Pos::new(0, 0),
             },
-            by: PieceColor::White,
+            by: Piece {
+                piece_type: PieceType::Pawn(true),
+                color: PieceColor::White,
+                pos: Pos::new(1, 1),
+            },
             capturing: Some(Piece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::Black,
@@ -734,7 +748,11 @@ mod tests {
                 from: Pos::new(0, 0),
                 to: Pos::new(0, 4),
             },
-            by: PieceColor::Black,
+            by: Piece {
+                piece_type: PieceType::Rook,
+                color: PieceColor::Black,
+                pos: Pos::new(0, 4),
+            },
             capturing: Some(Piece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::White,
@@ -766,7 +784,11 @@ mod tests {
                 from: Pos::new(2, 0),
                 to: Pos::new(0, 0),
             },
-            by: PieceColor::White,
+            by: Piece {
+                piece_type: PieceType::Queen,
+                color: PieceColor::White,
+                pos: Pos::new(2, 0),
+            },
             capturing: Some(Piece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::Black,

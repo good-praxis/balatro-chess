@@ -305,7 +305,6 @@ impl Piece {
     }
 }
 
-#[repr(u8)]
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PieceType {
     King,

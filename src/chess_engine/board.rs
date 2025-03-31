@@ -221,6 +221,7 @@ impl Board {
         // update inner pos on piece
         let mut piece = self[ply.move_to.from].unwrap();
         piece.pos = ply.move_to.to;
+        piece.has_moved = true;
 
         // if piece is king, we also need to move it's mapping
         if piece.piece_type == PieceType::King {
@@ -238,6 +239,11 @@ impl Board {
             // update inner pos on piece
             let mut piece = self[rewind.move_to.to].unwrap();
             piece.pos = rewind.move_to.from;
+
+            // resetting movement flag if this was the first move by piece
+            if !rewind.by.has_moved {
+                piece.has_moved = false;
+            }
 
             // if piece is king, we also need to move it's mapping
             if piece.piece_type == PieceType::King {
@@ -588,6 +594,7 @@ mod tests {
                 piece_type: PieceType::Pawn,
                 color: PieceColor::White,
                 pos: dest,
+                has_moved: true,
                 ..Default::default()
             })
         )

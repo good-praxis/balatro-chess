@@ -101,7 +101,7 @@ impl Board {
                 'r' | 'R' => PieceType::Rook,
                 'n' | 'N' => PieceType::Knight,
                 'b' | 'B' => PieceType::Bishop,
-                'p' | 'P' => PieceType::Pawn(true),
+                'p' | 'P' => PieceType::Pawn,
                 _ => panic!("Unexpected char: {}", char),
             };
 
@@ -289,7 +289,7 @@ impl Board {
                 let legal_moves_count = self.get_moves_for_pos(piece.pos).unwrap_or(vec![]).len();
 
                 *piece_counts.entry(piece.piece_type).or_insert(0) += sign;
-                if matches!(piece.piece_type, PieceType::Pawn(_)) {
+                if matches!(piece.piece_type, PieceType::Pawn) {
                     match piece.color {
                         PieceColor::White => white_pawns_per_column[piece.pos.column] += 1,
                         PieceColor::Black => black_pawns_per_column[piece.pos.column] += 1,
@@ -311,7 +311,7 @@ impl Board {
                 PieceType::Rook => material_score += count * ROOK_WEIGHT,
                 PieceType::Bishop => material_score += count * BISHOP_WEIGHT,
                 PieceType::Knight => material_score += count * KNIGHT_WEIGHT,
-                PieceType::Pawn(_) => material_score += count * PAWN_WEIGHT,
+                PieceType::Pawn => material_score += count * PAWN_WEIGHT,
             }
         }
 
@@ -514,14 +514,8 @@ mod tests {
             }
         }
 
-        assert_eq!(
-            dict.get(&(PieceType::Pawn(true), PieceColor::White)),
-            Some(&8)
-        );
-        assert_eq!(
-            dict.get(&(PieceType::Pawn(true), PieceColor::Black)),
-            Some(&8)
-        );
+        assert_eq!(dict.get(&(PieceType::Pawn, PieceColor::White)), Some(&8));
+        assert_eq!(dict.get(&(PieceType::Pawn, PieceColor::Black)), Some(&8));
         assert_eq!(dict.get(&(PieceType::Rook, PieceColor::White)), Some(&2));
         assert_eq!(dict.get(&(PieceType::Rook, PieceColor::Black)), Some(&2));
         assert_eq!(dict.get(&(PieceType::Bishop, PieceColor::White)), Some(&2));
@@ -570,14 +564,16 @@ mod tests {
                 to: dest,
             },
             by: Piece {
-                piece_type: PieceType::Pawn(true),
+                piece_type: PieceType::Pawn,
                 color: PieceColor::White,
                 pos: start,
+                ..Default::default()
             },
             capturing: Some(Piece {
-                piece_type: PieceType::Pawn(true),
+                piece_type: PieceType::Pawn,
                 color: PieceColor::Black,
                 pos: dest,
+                ..Default::default()
             }),
             ..Default::default()
         };
@@ -589,9 +585,10 @@ mod tests {
         assert_eq!(
             board.board[0],
             Some(Piece {
-                piece_type: PieceType::Pawn(true),
+                piece_type: PieceType::Pawn,
                 color: PieceColor::White,
-                pos: dest
+                pos: dest,
+                ..Default::default()
             })
         )
     }
@@ -612,14 +609,16 @@ mod tests {
                 to: Pos::new(0, 0),
             },
             by: Piece {
-                piece_type: PieceType::Pawn(true),
+                piece_type: PieceType::Pawn,
                 color: PieceColor::White,
                 pos: Pos::new(1, 1),
+                ..Default::default()
             },
             capturing: Some(Piece {
-                piece_type: PieceType::Pawn(true),
+                piece_type: PieceType::Pawn,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
+                ..Default::default()
             }),
             ..Default::default()
         };
@@ -726,14 +725,16 @@ mod tests {
                 to: Pos::new(0, 0),
             },
             by: Piece {
-                piece_type: PieceType::Pawn(true),
+                piece_type: PieceType::Pawn,
                 color: PieceColor::White,
                 pos: Pos::new(1, 1),
+                ..Default::default()
             },
             capturing: Some(Piece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
+                ..Default::default()
             }),
             ..Default::default()
         };
@@ -766,11 +767,13 @@ mod tests {
                 piece_type: PieceType::Rook,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
+                ..Default::default()
             },
             capturing: Some(Piece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::White,
                 pos: Pos::new(0, 4),
+                ..Default::default()
             }),
             ..Default::default()
         };
@@ -802,11 +805,13 @@ mod tests {
                 piece_type: PieceType::Queen,
                 color: PieceColor::White,
                 pos: Pos::new(2, 0),
+                ..Default::default()
             },
             capturing: Some(Piece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
+                ..Default::default()
             }),
             ..Default::default()
         };

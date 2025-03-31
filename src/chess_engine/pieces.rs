@@ -11,13 +11,16 @@ pub struct Piece {
     pub piece_type: PieceType,
     pub color: PieceColor,
     pub pos: Pos,
+    pub has_moved: bool,
 }
+
 impl Piece {
     pub fn new(piece_type: PieceType, color: PieceColor, pos: Pos) -> Self {
         Self {
             piece_type,
             color,
             pos,
+            ..Default::default()
         }
     }
 
@@ -33,8 +36,8 @@ impl Piece {
             (PieceType::Bishop, PieceColor::Black) => 'B',
             (PieceType::Knight, PieceColor::White) => 'n',
             (PieceType::Knight, PieceColor::Black) => 'N',
-            (PieceType::Pawn(_), PieceColor::White) => 'p',
-            (PieceType::Pawn(_), PieceColor::Black) => 'P',
+            (PieceType::Pawn, PieceColor::White) => 'p',
+            (PieceType::Pawn, PieceColor::Black) => 'P',
         }
     }
 
@@ -60,7 +63,7 @@ impl Piece {
             PieceType::Rook => self.rook_move_generation(board),
             PieceType::Bishop => self.bishop_move_generation(board),
             PieceType::Knight => self.knight_move_generation(board),
-            PieceType::Pawn(_) => self.pawn_move_generation(board),
+            PieceType::Pawn => self.pawn_move_generation(board),
         }
     }
 
@@ -179,7 +182,7 @@ impl Piece {
                 moves.push(self.move_to_pos(valid_dest));
 
                 // If the first step isn't blocked, we can check for the double step
-                if self.piece_type == PieceType::Pawn(true) {
+                if self.piece_type == PieceType::Pawn && !self.has_moved {
                     let move_vec = MoveVec {
                         x: 2 * direction,
                         y: 0,
@@ -303,21 +306,17 @@ impl Piece {
 }
 
 #[repr(u8)]
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PieceType {
     King,
     Queen,
     Rook,
     Bishop,
     Knight,
-    /// bool tracks if pawn can take two steps forwards
-    Pawn(bool),
+    #[default]
+    Pawn,
 }
-impl Default for PieceType {
-    fn default() -> Self {
-        Self::Pawn(true)
-    }
-}
+
 impl PieceType {
     fn discriminant(&self) -> u8 {
         // SAFETY: Because `Self` is marked `repr(u8)`, its layout is a `repr(C)` `union`
@@ -551,9 +550,10 @@ mod tests {
                 to: Pos::new(2, 0),
             },
             by: Piece {
-                piece_type: PieceType::Pawn(true),
+                piece_type: PieceType::Pawn,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
+                has_moved: false,
             },
             en_passant_flag: true,
             ..Default::default()

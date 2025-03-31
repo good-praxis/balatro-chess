@@ -76,7 +76,7 @@ impl Ply {
                 PieceType::Rook => 19,
                 PieceType::Bishop => 13,
                 PieceType::Knight => 7,
-                PieceType::Pawn(_) => 1,
+                PieceType::Pawn => 1,
                 _ => 0,
             };
             let attacker_value = match self.by.piece_type {
@@ -84,7 +84,7 @@ impl Ply {
                 PieceType::Rook => 2,
                 PieceType::Bishop => 3,
                 PieceType::Knight => 4,
-                PieceType::Pawn(_) => 5,
+                PieceType::Pawn => 5,
                 _ => 0,
             };
             return victim_value + attacker_value;

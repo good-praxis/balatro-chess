@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use super::pieces::Piece;
 
 /// Valid position on the board
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Pos {
     pub row: usize,
     pub column: usize,
@@ -21,7 +21,7 @@ impl Pos {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct MoveTo {
     pub from: Pos,
     pub to: Pos,
@@ -34,9 +34,10 @@ pub struct MoveVec {
     pub y: i16,
 }
 
-/// Type that encodes the `MoveTo` with metadata
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Move {
+/// A classical chess move from either side. Name choosen to avoid rust's protected `move`
+/// contains flags for capturing, castling, promotions
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Ply {
     pub move_to: MoveTo,
     pub by: Piece,
     /// Set if a move takes an opponent's piece
@@ -45,7 +46,7 @@ pub struct Move {
     pub en_passant_flag: bool,
 }
 
-impl PartialOrd for Move {
+impl PartialOrd for Ply {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         // using MVV_LVA
         match (self.capturing, other.capturing) {
@@ -60,13 +61,13 @@ impl PartialOrd for Move {
     }
 }
 
-impl Ord for Move {
+impl Ord for Ply {
     fn cmp(&self, other: &Self) -> Ordering {
         self.partial_cmp(other).unwrap()
     }
 }
 
-impl Move {
+impl Ply {
     fn capture_sorting_value(&self) -> u8 {
         use super::pieces::PieceType;
         if let Some(captured) = self.capturing {

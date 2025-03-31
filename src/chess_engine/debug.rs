@@ -48,8 +48,8 @@ fn print_and_play(
 ) {
     if debug_flags.running {
         std::thread::sleep(Duration::from_secs_f32(0.5));
-        if let Some(next_move) = board.search_next_move(1).1 {
-            board.apply_move(next_move);
+        if let Some(ply) = board.search_next_move(1).1 {
+            board.apply_ply(ply);
             query.single_mut().0 = board.to_string();
         } else {
             let mut string = board.to_string();

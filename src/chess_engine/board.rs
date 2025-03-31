@@ -1,4 +1,4 @@
-use super::moves::{Move, MoveVec, Pos};
+use super::moves::{MoveVec, Ply, Pos};
 use super::pieces::{Piece, PieceColor, PieceType};
 use bevy::prelude::*;
 use std::collections::BinaryHeap;
@@ -12,7 +12,7 @@ use std::{
 pub struct Board {
     pub board: Vec<Option<Piece>>,
     pub row_length: usize,
-    pub moves: Vec<Move>,
+    pub moves: Vec<Ply>,
     pub king_map: HashMap<PieceColor, Pos>,
     pub next_move_by: PieceColor,
 }
@@ -119,7 +119,7 @@ impl Board {
         }
     }
 
-    fn get_moves_for_pos(&self, pos: Pos) -> Option<Vec<Move>> {
+    fn get_moves_for_pos(&self, pos: Pos) -> Option<Vec<Ply>> {
         let piece = self[pos];
 
         if let Some(piece) = piece {
@@ -165,7 +165,7 @@ impl Board {
 
     /// Checks if applying a move would leave the moving party in check
     /// If needed, further pre-checks could be run to limit the amounts of moves and pieces evaluated
-    fn legality_check(&self, moves: Vec<Move>) -> Vec<Move> {
+    fn legality_check(&self, moves: Vec<Ply>) -> Vec<Ply> {
         // if there are no moves, return early
         if moves.is_empty() {
             return moves;
@@ -179,7 +179,7 @@ impl Board {
         let mut legal_moves = vec![];
         let mut sim_board = self.clone();
         'next: for this_move in moves {
-            sim_board.apply_move(this_move);
+            sim_board.apply_ply(this_move);
 
             for tile in sim_board.board.iter() {
                 if let Some(piece) = tile {
@@ -209,27 +209,27 @@ impl Board {
         legal_moves
     }
 
-    pub fn apply_move(&mut self, this_move: Move) {
+    pub fn apply_ply(&mut self, ply: Ply) {
         // push to simulation list
-        self.moves.push(this_move);
+        self.moves.push(ply);
 
         // capture
-        if let Some(captured_piece) = this_move.capturing {
+        if let Some(captured_piece) = ply.capturing {
             self[captured_piece.pos] = None;
         }
 
         // update inner pos on piece
-        let mut piece = self[this_move.move_to.from].unwrap();
-        piece.pos = this_move.move_to.to;
+        let mut piece = self[ply.move_to.from].unwrap();
+        piece.pos = ply.move_to.to;
 
         // if piece is king, we also need to move it's mapping
         if piece.piece_type == PieceType::King {
-            self.king_map.insert(piece.color, this_move.move_to.to);
+            self.king_map.insert(piece.color, ply.move_to.to);
         }
 
         // move piece
-        self[this_move.move_to.from] = None;
-        self[this_move.move_to.to] = Some(piece);
+        self[ply.move_to.from] = None;
+        self[ply.move_to.to] = Some(piece);
         self.next_move_by = self.next_move_by.next();
     }
 
@@ -382,7 +382,7 @@ impl Board {
             * self.next_move_by.score_sign()
     }
 
-    pub fn unsorted_move_list(&self) -> Vec<Move> {
+    pub fn unsorted_move_list(&self) -> Vec<Ply> {
         let mut moves = vec![];
         for piece in self.board.clone().iter().flatten() {
             if piece.color == self.next_move_by {
@@ -395,7 +395,7 @@ impl Board {
     }
 
     /// applies MVV-LVA on the unsorted move list
-    pub fn sorted_move_list(&self) -> BinaryHeap<Move> {
+    pub fn sorted_move_list(&self) -> BinaryHeap<Ply> {
         let mut moves = BinaryHeap::new();
         for piece in self.board.clone().iter().flatten() {
             if piece.color == self.next_move_by {
@@ -407,7 +407,7 @@ impl Board {
         moves
     }
 
-    pub fn capturing_move_list(&self) -> Vec<Move> {
+    pub fn capturing_move_list(&self) -> Vec<Ply> {
         let mut moves = vec![];
         for piece in self.board.clone().iter().flatten() {
             if piece.color == self.next_move_by {
@@ -423,7 +423,7 @@ impl Board {
         moves
     }
 
-    pub fn search_next_move(&self, depth: i8) -> (i32, Option<Move>) {
+    pub fn search_next_move(&self, depth: i8) -> (i32, Option<Ply>) {
         self.alpha_beta(i32::MIN, i32::MAX, depth)
     }
 
@@ -440,8 +440,8 @@ impl Board {
         }
 
         let mut sim_board = self.clone();
-        for this_move in self.capturing_move_list() {
-            sim_board.apply_move(this_move);
+        for ply in self.capturing_move_list() {
+            sim_board.apply_ply(ply);
             let score = sim_board
                 .quiescence_search(beta.saturating_neg(), alpha.saturating_neg())
                 .saturating_neg();
@@ -461,7 +461,7 @@ impl Board {
         best_score
     }
 
-    fn alpha_beta(&self, mut alpha: i32, beta: i32, depth: i8) -> (i32, Option<Move>) {
+    fn alpha_beta(&self, mut alpha: i32, beta: i32, depth: i8) -> (i32, Option<Ply>) {
         if depth == 0 {
             return (
                 self.quiescence_search(alpha, beta),
@@ -473,7 +473,7 @@ impl Board {
 
         let mut best_move = (i32::MIN, None);
         for this_move in self.sorted_move_list() {
-            sim_board.apply_move(this_move);
+            sim_board.apply_ply(this_move);
             let score = sim_board
                 .alpha_beta(beta.saturating_neg(), alpha.saturating_neg(), depth - 1)
                 .0
@@ -554,7 +554,7 @@ mod tests {
         assert_eq!(result, 162);
     }
     #[test]
-    fn apply_move() {
+    fn apply_ply() {
         let mut board = Board::from_str(
             r#"
             P0
@@ -564,7 +564,7 @@ mod tests {
         );
         let dest = Pos::new(0, 0);
         let start = Pos::new(1, 1);
-        let this_move = super::Move {
+        let ply = super::Ply {
             move_to: MoveTo {
                 from: start,
                 to: dest,
@@ -579,10 +579,10 @@ mod tests {
                 color: PieceColor::Black,
                 pos: dest,
             }),
-            en_passant_flag: false,
+            ..Default::default()
         };
 
-        board.apply_move(this_move);
+        board.apply_ply(ply);
         assert_eq!(board.board.len(), 4);
 
         assert_eq!(board.moves.len(), 1);
@@ -606,7 +606,7 @@ mod tests {
             2,
         );
         let frozen_board = board.board.clone();
-        let this_move = super::Move {
+        let ply = super::Ply {
             move_to: MoveTo {
                 from: Pos::new(1, 1),
                 to: Pos::new(0, 0),
@@ -621,10 +621,10 @@ mod tests {
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
             }),
-            en_passant_flag: false,
+            ..Default::default()
         };
 
-        board.apply_move(this_move);
+        board.apply_ply(ply);
         assert_ne!(board.board, frozen_board);
         board.rewind_last_move();
         assert_eq!(board.board, frozen_board);
@@ -720,7 +720,7 @@ mod tests {
         );
 
         let next_move = board.search_next_move(3);
-        let expected_move = super::Move {
+        let expected_move = super::Ply {
             move_to: MoveTo {
                 from: Pos::new(1, 1),
                 to: Pos::new(0, 0),
@@ -735,7 +735,7 @@ mod tests {
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
             }),
-            en_passant_flag: false,
+            ..Default::default()
         };
 
         assert!(next_move.1.is_some());
@@ -757,7 +757,7 @@ mod tests {
         board.next_move_by = PieceColor::Black;
 
         let next_move = board.search_next_move(1);
-        let expected_move = super::Move {
+        let expected_move = super::Ply {
             move_to: MoveTo {
                 from: Pos::new(0, 0),
                 to: Pos::new(0, 4),
@@ -772,7 +772,7 @@ mod tests {
                 color: PieceColor::White,
                 pos: Pos::new(0, 4),
             }),
-            en_passant_flag: false,
+            ..Default::default()
         };
 
         assert!(next_move.1.is_some());
@@ -793,7 +793,7 @@ mod tests {
         );
 
         let next_move = board.search_next_move(1);
-        let avoided_capture = super::Move {
+        let avoided_capture = super::Ply {
             move_to: MoveTo {
                 from: Pos::new(2, 0),
                 to: Pos::new(0, 0),
@@ -808,7 +808,7 @@ mod tests {
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
             }),
-            en_passant_flag: false,
+            ..Default::default()
         };
 
         assert!(next_move.1.is_some());

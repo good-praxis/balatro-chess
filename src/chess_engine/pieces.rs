@@ -524,12 +524,12 @@ mod tests {
         );
 
         assert_eq!(
-            board.king_map.get(&PieceColor::White),
-            Some(&Pos::new(0, 1))
+            board.piece_map.get(&(PieceColor::White, PieceType::King)),
+            Some(&vec![Pos::new(0, 1)])
         );
         assert_eq!(
-            board.king_map.get(&PieceColor::Black),
-            Some(&Pos::new(1, 0))
+            board.piece_map.get(&(PieceColor::Black, PieceType::King)),
+            Some(&vec![Pos::new(1, 0)])
         );
     }
 

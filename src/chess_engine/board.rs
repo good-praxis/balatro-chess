@@ -13,7 +13,7 @@ pub struct Board {
     pub board: Vec<Option<Piece>>,
     pub row_length: usize,
     pub moves: Vec<Ply>,
-    pub king_map: HashMap<PieceColor, Pos>,
+    pub piece_map: HashMap<(PieceColor, PieceType), Vec<Pos>>,
     pub next_move_by: PieceColor,
 }
 impl Default for Board {
@@ -68,7 +68,7 @@ impl Board {
     pub fn from_str(input: &str, row_length: usize) -> Self {
         let mut board = Vec::new();
         let mut idx = 0;
-        let mut king_map = HashMap::new();
+        let mut piece_map = HashMap::new();
 
         for char in input.chars() {
             // skip whitespaces
@@ -93,10 +93,7 @@ impl Board {
                 PieceColor::Black
             };
             let piece_type = match char {
-                'k' | 'K' => {
-                    king_map.insert(color, pos);
-                    PieceType::King
-                }
+                'k' | 'K' => PieceType::King,
                 'q' | 'Q' => PieceType::Queen,
                 'r' | 'R' => PieceType::Rook,
                 'n' | 'N' => PieceType::Knight,
@@ -104,6 +101,11 @@ impl Board {
                 'p' | 'P' => PieceType::Pawn,
                 _ => panic!("Unexpected char: {}", char),
             };
+
+            piece_map
+                .entry((color, piece_type))
+                .or_insert(vec![])
+                .push(pos);
 
             board.push(Some(Piece::new(piece_type, color, pos)));
 
@@ -114,7 +116,7 @@ impl Board {
             board,
             row_length,
             moves: vec![],
-            king_map,
+            piece_map,
             next_move_by: PieceColor::White,
         }
     }
@@ -172,7 +174,11 @@ impl Board {
         }
 
         // if there is no king (i.e. simulations, tests), ignore legality checks
-        if self.king_map.get(&moves[0].by.color).is_none() {
+        if self
+            .piece_map
+            .get(&(moves[0].by.color, PieceType::King))
+            .is_none()
+        {
             return moves;
         }
 
@@ -190,8 +196,11 @@ impl Board {
 
                         // if any of the pseudolegal moves contain the king's position, it is threatened
                         if moves.iter().any(|next_move| {
-                            next_move.move_to.to
-                                == *sim_board.king_map.get(&this_move.by.color).unwrap()
+                            sim_board
+                                .piece_map
+                                .get(&(this_move.by.color, PieceType::King))
+                                .unwrap()
+                                .contains(&next_move.move_to.to)
                         }) {
                             // Rewind the applied move, try next one
                             sim_board.rewind_last_move();
@@ -223,10 +232,13 @@ impl Board {
         piece.pos = ply.move_to.to;
         piece.has_moved = true;
 
-        // if piece is king, we also need to move it's mapping
-        if piece.piece_type == PieceType::King {
-            self.king_map.insert(piece.color, ply.move_to.to);
-        }
+        // update piece_list mapping
+        self.piece_map
+            .entry((piece.color, piece.piece_type))
+            .and_modify(|pos_list| {
+                pos_list.retain(|pos| *pos != ply.move_to.from);
+                pos_list.push(ply.move_to.to)
+            });
 
         // move piece
         self[ply.move_to.from] = None;
@@ -245,10 +257,13 @@ impl Board {
                 piece.has_moved = false;
             }
 
-            // if piece is king, we also need to move it's mapping
-            if piece.piece_type == PieceType::King {
-                self.king_map.insert(piece.color, rewind.move_to.from);
-            }
+            // update piece_list mapping
+            self.piece_map
+                .entry((piece.color, piece.piece_type))
+                .and_modify(|pos_list| {
+                    pos_list.retain(|pos| *pos != rewind.move_to.to);
+                    pos_list.push(rewind.move_to.from)
+                });
 
             // move piece back
             self[rewind.move_to.to] = None;
@@ -541,7 +556,7 @@ mod tests {
             board: vec![],
             row_length: 16,
             moves: vec![],
-            king_map: HashMap::new(),
+            piece_map: HashMap::new(),
             next_move_by: PieceColor::White,
         };
         let result = board.row_and_column_to_idx(0, 0);

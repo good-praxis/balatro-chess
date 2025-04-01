@@ -126,6 +126,7 @@ impl Board {
         }
     }
 
+    /// Returns the legal moves for a piece at a given position
     fn get_moves_for_pos(&self, pos: Pos) -> Option<Vec<Ply>> {
         let piece = self[pos];
 
@@ -200,7 +201,7 @@ impl Board {
         // if there is no king (i.e. simulations, tests), ignore further legality checks
         if self
             .piece_map
-            .get(&(self.next_move_by.next(), PieceType::King))
+            .get(&(self.next_move_by, PieceType::King))
             .is_none()
         {
             return moves;

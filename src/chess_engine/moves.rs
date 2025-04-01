@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use super::pieces::Piece;
 
 /// Valid position on the board
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Pos {
     pub row: usize,
     pub column: usize,

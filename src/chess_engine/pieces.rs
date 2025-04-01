@@ -6,7 +6,7 @@ use super::{
 };
 use bevy::prelude::*;
 
-#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Piece {
     pub piece_type: PieceType,
     pub color: PieceColor,

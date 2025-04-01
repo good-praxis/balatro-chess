@@ -15,6 +15,7 @@ pub struct Board {
     pub moves: Vec<Ply>,
     pub piece_map: HashMap<(PieceColor, PieceType), Vec<Pos>>,
     pub next_move_by: PieceColor,
+    pub repeated_board_count: HashMap<Vec<Option<Piece>>, isize>,
 }
 impl Default for Board {
     fn default() -> Self {
@@ -112,12 +113,16 @@ impl Board {
             idx += 1;
         }
 
+        let mut visited = HashMap::new();
+        visited.insert(board.clone(), 1);
+
         Self {
             board,
             row_length,
             moves: vec![],
             piece_map,
             next_move_by: PieceColor::White,
+            repeated_board_count: visited,
         }
     }
 
@@ -173,17 +178,35 @@ impl Board {
             return moves;
         }
 
-        // if there is no king (i.e. simulations, tests), ignore legality checks
+        let mut sim_board = self.clone();
+
+        let mut not_thricefold_repeated = vec![];
+        for this_move in moves {
+            sim_board.apply_ply(this_move);
+
+            // Board position repeated thrice
+            if self
+                .repeated_board_count
+                .get(&self.board)
+                .is_some_and(|&i| i < 3)
+            {
+                not_thricefold_repeated.push(this_move);
+            }
+
+            sim_board.rewind_last_move();
+        }
+        let moves = not_thricefold_repeated;
+
+        // if there is no king (i.e. simulations, tests), ignore further legality checks
         if self
             .piece_map
-            .get(&(moves[0].by.color, PieceType::King))
+            .get(&(self.next_move_by.next(), PieceType::King))
             .is_none()
         {
             return moves;
         }
 
         let mut legal_moves = vec![];
-        let mut sim_board = self.clone();
         'next: for this_move in moves {
             sim_board.apply_ply(this_move);
 
@@ -244,10 +267,21 @@ impl Board {
         self[ply.move_to.from] = None;
         self[ply.move_to.to] = Some(piece);
         self.next_move_by = self.next_move_by.next();
+
+        // Thricefold repeatition count
+        *self
+            .repeated_board_count
+            .entry(self.board.clone())
+            .or_insert(0) += 1;
     }
 
     pub fn rewind_last_move(&mut self) {
         if let Some(rewind) = self.moves.pop() {
+            *self
+                .repeated_board_count
+                .entry(self.board.clone())
+                .or_insert(0) -= 1;
+
             // update inner pos on piece
             let mut piece = self[rewind.move_to.to].unwrap();
             piece.pos = rewind.move_to.from;
@@ -553,11 +587,8 @@ mod tests {
     #[test]
     fn row_and_column_to_idx_test() {
         let board = Board {
-            board: vec![],
             row_length: 16,
-            moves: vec![],
-            piece_map: HashMap::new(),
-            next_move_by: PieceColor::White,
+            ..Default::default()
         };
         let result = board.row_and_column_to_idx(0, 0);
         assert_eq!(result, 0);
@@ -840,5 +871,25 @@ mod tests {
 
         assert!(next_move.1.is_some());
         assert_ne!(next_move.1, Some(avoided_capture));
+    }
+
+    #[test]
+    fn thricefold_draw_prevention() {
+        let mut board = Board::from_str(
+            r#"
+                0
+                r
+                "#,
+            1,
+        );
+
+        for _ in 0..5 {
+            let (_, ply) = board.search_next_move(1);
+            board.apply_ply(ply.unwrap());
+            board.next_move_by = PieceColor::White;
+        }
+
+        let (_, no_ply) = board.search_next_move(1);
+        assert!(no_ply.is_none());
     }
 }

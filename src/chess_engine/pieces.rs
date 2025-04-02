@@ -5,6 +5,8 @@ use super::{
     moves::{MoveVec, Ply, Pos},
 };
 use bevy::prelude::*;
+use strum::IntoEnumIterator;
+use strum_macros::{EnumIs, EnumIter};
 
 #[derive(Component, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Piece {
@@ -305,7 +307,7 @@ impl Piece {
     }
 }
 
-#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
 pub enum PieceType {
     King,
     Queen,
@@ -325,7 +327,7 @@ impl PieceType {
     }
 }
 
-#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
 pub enum PieceColor {
     #[default]
     White,

@@ -1,7 +1,9 @@
 use super::moves::{MoveVec, Ply, Pos};
 use super::pieces::{Piece, PieceColor, PieceType};
+use super::zobrist::Zobrist;
 use bevy::prelude::*;
 use std::collections::BinaryHeap;
+use std::sync::Arc;
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -15,7 +17,9 @@ pub struct Board {
     pub moves: Vec<Ply>,
     pub piece_map: HashMap<(PieceColor, PieceType), Vec<Pos>>,
     pub next_move_by: PieceColor,
-    pub repeated_board_count: HashMap<Vec<Option<Piece>>, isize>,
+    pub repeated_board_count: HashMap<u32, isize>,
+    pub zobrist_table: Arc<Zobrist>,
+    pub zobrist_hash: u32,
 }
 impl Default for Board {
     fn default() -> Self {
@@ -113,8 +117,11 @@ impl Board {
             idx += 1;
         }
 
+        let zobrist_table = Arc::new(Zobrist::new(board.len()));
+        let zobrist_hash = zobrist_table.gen_initial_hash(&board);
+
         let mut visited = HashMap::new();
-        visited.insert(board.clone(), 1);
+        visited.insert(zobrist_hash, 1);
 
         Self {
             board,
@@ -123,6 +130,8 @@ impl Board {
             piece_map,
             next_move_by: PieceColor::White,
             repeated_board_count: visited,
+            zobrist_table,
+            zobrist_hash,
         }
     }
 
@@ -151,7 +160,7 @@ impl Board {
     }
 
     #[inline]
-    fn pos_to_idx(&self, pos: Pos) -> usize {
+    pub fn pos_to_idx(&self, pos: Pos) -> usize {
         self.row_and_column_to_idx(pos.row, pos.column)
     }
 
@@ -188,8 +197,8 @@ impl Board {
             // Board position repeated thrice
             if self
                 .repeated_board_count
-                .get(&self.board)
-                .is_some_and(|&i| i < 3)
+                .get(&sim_board.zobrist_hash)
+                .is_none_or(|&i| i < 3)
             {
                 not_thricefold_repeated.push(this_move);
             }
@@ -269,10 +278,15 @@ impl Board {
         self[ply.move_to.to] = Some(piece);
         self.next_move_by = self.next_move_by.next();
 
+        // Update zobrist hash
+        self.zobrist_hash = self
+            .zobrist_table
+            .update_hash(&self, self.zobrist_hash, ply);
+
         // Thricefold repeatition count
         *self
             .repeated_board_count
-            .entry(self.board.clone())
+            .entry(self.zobrist_hash)
             .or_insert(0) += 1;
     }
 
@@ -280,8 +294,13 @@ impl Board {
         if let Some(rewind) = self.moves.pop() {
             *self
                 .repeated_board_count
-                .entry(self.board.clone())
+                .entry(self.zobrist_hash)
                 .or_insert(0) -= 1;
+
+            // update hash
+            self.zobrist_hash = self
+                .zobrist_table
+                .update_hash(self, self.zobrist_hash, rewind);
 
             // update inner pos on piece
             let mut piece = self[rewind.move_to.to].unwrap();

@@ -1,3 +1,4 @@
+use super::bitboard::Bitboards;
 use super::moves::{MoveVec, Ply, Pos};
 use super::pieces::{Piece, PieceColor, PieceType};
 use super::zobrist::Zobrist;
@@ -13,6 +14,7 @@ use std::{
 #[derive(Resource, Debug, Clone)]
 pub struct Game {
     pub board: Vec<Option<Piece>>,
+    pub boards: Bitboards,
     pub row_length: usize,
     pub moves: Vec<Ply>,
     pub piece_map: HashMap<(PieceColor, PieceType), Vec<Pos>>,
@@ -125,6 +127,7 @@ impl Game {
 
         Self {
             board,
+            boards: Bitboards::from_str(input),
             row_length,
             moves: vec![],
             piece_map,

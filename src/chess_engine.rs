@@ -9,6 +9,7 @@ mod pieces;
 mod debug;
 use debug::ChessDebugPlugin;
 
+mod bitboard;
 mod zobrist;
 
 pub struct ChessEnginePlugin;

@@ -1,12 +1,11 @@
 use std::cmp::Ordering;
 
 use super::{
-    board::Board,
+    game::Game,
     moves::{MoveVec, Ply, Pos},
 };
 use bevy::prelude::*;
-use strum::IntoEnumIterator;
-use strum_macros::{EnumIs, EnumIter};
+use strum_macros::EnumIter;
 
 #[derive(Component, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Piece {
@@ -51,14 +50,8 @@ impl Piece {
             .cmp(&other.piece_type.discriminant())
     }
 
-    /// Used with MVV-LVA for move ordering.
-    /// inverse of `attacker_cmp`
-    pub fn victim_cmp(&self, other: &Self) -> Ordering {
-        self.attacker_cmp(other).reverse()
-    }
-
     /// The generated moves do not perform any checking checks, however vector attacks do stop at collisions
-    pub fn generate_pseudolegal_moves(&self, board: &Board) -> Vec<Ply> {
+    pub fn generate_pseudolegal_moves(&self, board: &Game) -> Vec<Ply> {
         match self.piece_type {
             PieceType::King => self.king_move_generation(board),
             PieceType::Queen => self.queen_move_generation(board),
@@ -69,7 +62,7 @@ impl Piece {
         }
     }
 
-    fn king_move_generation(&self, board: &Board) -> Vec<Ply> {
+    fn king_move_generation(&self, board: &Game) -> Vec<Ply> {
         let movement_vectors = [
             MoveVec { x: 1, y: 0 },
             MoveVec { x: 1, y: 1 },
@@ -84,7 +77,7 @@ impl Piece {
         self.step_moves(board, &movement_vectors)
     }
 
-    fn knight_move_generation(&self, board: &Board) -> Vec<Ply> {
+    fn knight_move_generation(&self, board: &Game) -> Vec<Ply> {
         let movement_vectors = [
             MoveVec { x: 1, y: 2 },
             MoveVec { x: 2, y: 1 },
@@ -99,7 +92,7 @@ impl Piece {
         self.step_moves(board, &movement_vectors)
     }
 
-    fn step_moves(&self, board: &Board, movement_vectors: &[MoveVec]) -> Vec<Ply> {
+    fn step_moves(&self, board: &Game, movement_vectors: &[MoveVec]) -> Vec<Ply> {
         let mut moves: Vec<Ply> = vec![];
         for vec in movement_vectors {
             // `valid_dest` is definitely in range of the board
@@ -119,7 +112,7 @@ impl Piece {
         moves
     }
 
-    fn raycasted_moves(&self, board: &Board, movement_vectors: &[MoveVec]) -> Vec<Ply> {
+    fn raycasted_moves(&self, board: &Game, movement_vectors: &[MoveVec]) -> Vec<Ply> {
         let mut moves: Vec<Ply> = vec![];
         for vec in movement_vectors {
             self.vector_walk(board, &mut moves, vec);
@@ -128,7 +121,7 @@ impl Piece {
         moves
     }
 
-    fn rook_move_generation(&self, board: &Board) -> Vec<Ply> {
+    fn rook_move_generation(&self, board: &Game) -> Vec<Ply> {
         let movement_vectors = [
             MoveVec { x: 1, y: 0 },
             MoveVec { x: 0, y: 1 },
@@ -139,7 +132,7 @@ impl Piece {
         self.raycasted_moves(board, &movement_vectors)
     }
 
-    fn bishop_move_generation(&self, board: &Board) -> Vec<Ply> {
+    fn bishop_move_generation(&self, board: &Game) -> Vec<Ply> {
         let movement_vectors = [
             MoveVec { x: 1, y: 1 },
             MoveVec { x: -1, y: 1 },
@@ -149,7 +142,7 @@ impl Piece {
         self.raycasted_moves(board, &movement_vectors)
     }
 
-    fn queen_move_generation(&self, board: &Board) -> Vec<Ply> {
+    fn queen_move_generation(&self, board: &Game) -> Vec<Ply> {
         let movement_vectors = [
             MoveVec { x: 1, y: 0 },
             MoveVec { x: 1, y: 1 },
@@ -164,7 +157,7 @@ impl Piece {
         self.raycasted_moves(board, &movement_vectors)
     }
 
-    fn pawn_move_generation(&self, board: &Board) -> Vec<Ply> {
+    fn pawn_move_generation(&self, board: &Game) -> Vec<Ply> {
         let mut moves: Vec<Ply> = vec![];
 
         let direction = if self.color == PieceColor::White {
@@ -247,7 +240,7 @@ impl Piece {
     }
     /// walk into the direction of a MoveVec until we reach and `Tile::Inactive`, a piece of our color,
     /// or we pass a piece of the opponent's color.
-    fn vector_walk(&self, board: &Board, moves: &mut Vec<Ply>, vec: &MoveVec) {
+    fn vector_walk(&self, board: &Game, moves: &mut Vec<Ply>, vec: &MoveVec) {
         let mut finished = false;
         let mut pos = self.pos;
         while !finished {
@@ -341,12 +334,6 @@ impl PieceColor {
         }
     }
 
-    pub fn pawn_move_direction(&self) -> i32 {
-        match self {
-            PieceColor::White => -1,
-            PieceColor::Black => 1,
-        }
-    }
     pub fn next(&self) -> Self {
         match self {
             PieceColor::White => PieceColor::Black,
@@ -363,7 +350,7 @@ mod tests {
 
     #[test]
     fn king_move_generation() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
         0kP
         p00
@@ -372,11 +359,11 @@ mod tests {
         );
         let pseudolegal_count = 4;
 
-        let piece = board[Pos::new(0, 1)].unwrap();
-        let enemy_pawn = board[Pos::new(0, 2)].unwrap();
-        let friend_pawn = board[Pos::new(1, 0)].unwrap();
+        let piece = game[Pos::new(0, 1)].unwrap();
+        let enemy_pawn = game[Pos::new(0, 2)].unwrap();
+        let friend_pawn = game[Pos::new(1, 0)].unwrap();
 
-        let moves = piece.generate_pseudolegal_moves(&board);
+        let moves = piece.generate_pseudolegal_moves(&game);
         assert_eq!(moves.len(), pseudolegal_count);
         assert!(moves.contains(&piece.move_capture(&enemy_pawn)));
         assert!(!moves.contains(&piece.move_capture(&friend_pawn)));
@@ -384,7 +371,7 @@ mod tests {
 
     #[test]
     fn rook_move_generation() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
         prPP
         0000
@@ -394,13 +381,13 @@ mod tests {
         );
         let pseudolegal_count = 3;
 
-        let piece = board[Pos::new(0, 1)].unwrap();
-        let enemy_pawn = board[Pos::new(0, 2)].unwrap();
-        let obscured_pawn = board[Pos::new(0, 3)].unwrap();
-        let friend_pawn = board[Pos::new(0, 0)].unwrap();
+        let piece = game[Pos::new(0, 1)].unwrap();
+        let enemy_pawn = game[Pos::new(0, 2)].unwrap();
+        let obscured_pawn = game[Pos::new(0, 3)].unwrap();
+        let friend_pawn = game[Pos::new(0, 0)].unwrap();
         let far_away_pos = Pos::new(2, 1);
 
-        let moves = piece.generate_pseudolegal_moves(&board);
+        let moves = piece.generate_pseudolegal_moves(&game);
         assert_eq!(moves.len(), pseudolegal_count);
         assert!(moves.contains(&piece.move_capture(&enemy_pawn)));
         assert!(!moves.contains(&piece.move_capture(&obscured_pawn)));
@@ -410,7 +397,7 @@ mod tests {
 
     #[test]
     fn bishop_move_generation() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
         0000P
         0p0P0
@@ -422,13 +409,13 @@ mod tests {
         );
         let pseudolegal_count = 5;
 
-        let piece = board[Pos::new(2, 2)].unwrap();
-        let enemy_pawn = board[Pos::new(1, 3)].unwrap();
-        let obscured_pawn = board[Pos::new(0, 4)].unwrap();
-        let friend_pawn = board[Pos::new(1, 1)].unwrap();
+        let piece = game[Pos::new(2, 2)].unwrap();
+        let enemy_pawn = game[Pos::new(1, 3)].unwrap();
+        let obscured_pawn = game[Pos::new(0, 4)].unwrap();
+        let friend_pawn = game[Pos::new(1, 1)].unwrap();
         let far_away_pos = Pos::new(4, 0);
 
-        let moves = piece.generate_pseudolegal_moves(&board);
+        let moves = piece.generate_pseudolegal_moves(&game);
         assert_eq!(moves.len(), pseudolegal_count);
         assert!(moves.contains(&piece.move_capture(&enemy_pawn)));
         assert!(!moves.contains(&piece.move_capture(&obscured_pawn)));
@@ -438,7 +425,7 @@ mod tests {
 
     #[test]
     fn queen_move_generation() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
         0000P
         0p0P0
@@ -450,14 +437,14 @@ mod tests {
         );
         let pseudolegal_count = 13;
 
-        let piece = board[Pos::new(2, 2)].unwrap();
-        let enemy_pawn = board[Pos::new(1, 3)].unwrap();
-        let obscured_pawn = board[Pos::new(0, 4)].unwrap();
-        let friend_pawn = board[Pos::new(1, 1)].unwrap();
-        let far_away_rook = board[Pos::new(4, 2)].unwrap();
-        let untargeted_knight = board[Pos::new(4, 3)].unwrap();
+        let piece = game[Pos::new(2, 2)].unwrap();
+        let enemy_pawn = game[Pos::new(1, 3)].unwrap();
+        let obscured_pawn = game[Pos::new(0, 4)].unwrap();
+        let friend_pawn = game[Pos::new(1, 1)].unwrap();
+        let far_away_rook = game[Pos::new(4, 2)].unwrap();
+        let untargeted_knight = game[Pos::new(4, 3)].unwrap();
 
-        let moves = piece.generate_pseudolegal_moves(&board);
+        let moves = piece.generate_pseudolegal_moves(&game);
         assert_eq!(moves.len(), pseudolegal_count);
         assert_eq!(moves.len(), pseudolegal_count);
         assert!(moves.contains(&piece.move_capture(&enemy_pawn)));
@@ -469,7 +456,7 @@ mod tests {
 
     #[test]
     fn knight_move_generation() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
         000P0
         0000p
@@ -481,11 +468,11 @@ mod tests {
         );
         let pseudolegal_count = 7;
 
-        let piece = board[Pos::new(2, 2)].unwrap();
-        let enemy_pawn = board[Pos::new(0, 3)].unwrap();
-        let friend_pawn = board[Pos::new(1, 4)].unwrap();
+        let piece = game[Pos::new(2, 2)].unwrap();
+        let enemy_pawn = game[Pos::new(0, 3)].unwrap();
+        let friend_pawn = game[Pos::new(1, 4)].unwrap();
 
-        let moves = piece.generate_pseudolegal_moves(&board);
+        let moves = piece.generate_pseudolegal_moves(&game);
         assert_eq!(moves.len(), pseudolegal_count);
         assert!(moves.contains(&piece.move_capture(&enemy_pawn)));
         assert!(!moves.contains(&piece.move_capture(&friend_pawn)));
@@ -493,7 +480,7 @@ mod tests {
 
     #[test]
     fn pawn_move_generation() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
         0000
         00P0
@@ -503,12 +490,12 @@ mod tests {
         );
         let pseudolegal_count = 3;
 
-        let piece = board[Pos::new(2, 1)].unwrap();
-        let enemy_pawn = board[Pos::new(1, 2)].unwrap();
+        let piece = game[Pos::new(2, 1)].unwrap();
+        let enemy_pawn = game[Pos::new(1, 2)].unwrap();
         let normal_pos = Pos::new(1, 1);
         let double_step_pos = Pos::new(0, 1);
 
-        let moves = piece.generate_pseudolegal_moves(&board);
+        let moves = piece.generate_pseudolegal_moves(&game);
         assert_eq!(moves.len(), pseudolegal_count);
         assert!(moves.contains(&piece.move_capture(&enemy_pawn)));
         assert!(moves.contains(&piece.move_to_pos(normal_pos)));
@@ -517,7 +504,7 @@ mod tests {
 
     #[test]
     fn keep_track_of_kings_test() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
             0k
             K0
@@ -526,18 +513,18 @@ mod tests {
         );
 
         assert_eq!(
-            board.piece_map.get(&(PieceColor::White, PieceType::King)),
+            game.piece_map.get(&(PieceColor::White, PieceType::King)),
             Some(&vec![Pos::new(0, 1)])
         );
         assert_eq!(
-            board.piece_map.get(&(PieceColor::Black, PieceType::King)),
+            game.piece_map.get(&(PieceColor::Black, PieceType::King)),
             Some(&vec![Pos::new(1, 0)])
         );
     }
 
     #[test]
     fn pawn_en_passant_test() {
-        let mut board = Board::from_str(
+        let mut game = Game::from_str(
             r#"
             00
             00
@@ -545,7 +532,7 @@ mod tests {
             "#,
             2,
         );
-        board.moves.push(super::Ply {
+        game.moves.push(super::Ply {
             move_to: MoveTo {
                 from: Pos::new(0, 0),
                 to: Pos::new(2, 0),
@@ -561,18 +548,18 @@ mod tests {
         });
         let valid_moves = 3;
 
-        let piece = board[Pos::new(2, 1)].unwrap();
-        let enemy_pawn = board[Pos::new(2, 0)].unwrap();
+        let piece = game[Pos::new(2, 1)].unwrap();
+        let enemy_pawn = game[Pos::new(2, 0)].unwrap();
         let dest = Pos::new(1, 0);
 
-        let moves = piece.generate_pseudolegal_moves(&board);
+        let moves = piece.generate_pseudolegal_moves(&game);
         assert_eq!(moves.len(), valid_moves);
         assert!(moves.contains(&piece.move_to_while_capturing(dest, &enemy_pawn)));
     }
 
     #[test]
     fn legal_moves_checking_test() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
             00k0n
             r00b0
@@ -582,14 +569,14 @@ mod tests {
         );
         let legal_moves = 6;
 
-        let moves = board.unsorted_move_list();
+        let moves = game.sorted_move_list();
 
         assert_eq!(moves.len(), legal_moves);
     }
 
     #[test]
     fn kingless_legal_move_test() {
-        let board = Board::from_str(
+        let board = Game::from_str(
             r#"
             0000n
             r00b0
@@ -599,7 +586,7 @@ mod tests {
         );
         let legal_moves = 9;
 
-        let moves = board.unsorted_move_list();
+        let moves = board.sorted_move_list();
 
         assert_eq!(moves.len(), legal_moves);
     }

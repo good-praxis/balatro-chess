@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use strum::IntoEnumIterator;
 
 use super::{
-    board::Board,
+    game::Game,
     moves::Ply,
     pieces::{Piece, PieceType},
 };
@@ -17,7 +17,6 @@ enum ZobristKey {
 #[derive(Debug)]
 pub struct Zobrist {
     table: HashMap<ZobristKey, u32>,
-    rng: ChaCha8Rng,
 }
 
 impl Zobrist {
@@ -32,7 +31,7 @@ impl Zobrist {
             }
         }
 
-        Self { table, rng }
+        Self { table }
     }
 
     pub fn gen_initial_hash(&self, board: &Vec<Option<Piece>>) -> u32 {
@@ -47,7 +46,7 @@ impl Zobrist {
     }
 
     /// Function works in both directions due to the xoring
-    pub fn update_hash(&self, board: &Board, mut hash: u32, ply: Ply) -> u32 {
+    pub fn update_hash(&self, board: &Game, mut hash: u32, ply: Ply) -> u32 {
         // remove previous position for moving piece
         hash ^=
             self.table[&ZobristKey::Piece(ply.by.piece_type, board.pos_to_idx(ply.move_to.from))];
@@ -74,22 +73,22 @@ mod tests {
 
     #[test]
     fn hash_on_default() {
-        let board = Board::default();
+        let board = Game::default();
 
         assert_ne!(board.zobrist_hash, 0);
     }
 
     #[test]
     fn hash_same_seed() {
-        let board = Board::default();
-        let other_board = Board::default();
+        let board = Game::default();
+        let other_board = Game::default();
 
         assert_eq!(board.zobrist_hash, other_board.zobrist_hash);
     }
 
     #[test]
     fn hash_updates() {
-        let mut board = Board::default();
+        let mut board = Game::default();
         let ply = Ply {
             move_to: MoveTo {
                 from: Pos::new(7, 1),
@@ -113,7 +112,7 @@ mod tests {
 
     #[test]
     fn hash_rewinds() {
-        let mut board = Board::default();
+        let mut board = Game::default();
         let ply = Ply {
             move_to: MoveTo {
                 from: Pos::new(7, 1),

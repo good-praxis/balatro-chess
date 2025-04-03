@@ -11,7 +11,7 @@ use std::{
 };
 
 #[derive(Resource, Debug, Clone)]
-pub struct Board {
+pub struct Game {
     pub board: Vec<Option<Piece>>,
     pub row_length: usize,
     pub moves: Vec<Ply>,
@@ -21,10 +21,10 @@ pub struct Board {
     pub zobrist_table: Arc<Zobrist>,
     pub zobrist_hash: u32,
 }
-impl Default for Board {
+impl Default for Game {
     fn default() -> Self {
         let row_length = 8;
-        Board::from_str(
+        Game::from_str(
             r#"
         RNBQKBNR
         PPPPPPPP
@@ -39,7 +39,7 @@ impl Default for Board {
         )
     }
 }
-impl Display for Board {
+impl Display for Game {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut board_str = String::new();
         for (i, piece) in self.board.iter().enumerate() {
@@ -55,21 +55,21 @@ impl Display for Board {
         write!(f, "{}", board_str)
     }
 }
-impl Index<Pos> for Board {
+impl Index<Pos> for Game {
     type Output = Option<Piece>;
 
     fn index(&self, pos: Pos) -> &Self::Output {
         &self.board[self.pos_to_idx(pos)]
     }
 }
-impl IndexMut<Pos> for Board {
+impl IndexMut<Pos> for Game {
     fn index_mut(&mut self, pos: Pos) -> &mut Self::Output {
         let idx = self.pos_to_idx(pos);
         &mut self.board[idx]
     }
 }
 
-impl Board {
+impl Game {
     pub fn from_str(input: &str, row_length: usize) -> Self {
         let mut board = Vec::new();
         let mut idx = 0;
@@ -188,22 +188,22 @@ impl Board {
             return moves;
         }
 
-        let mut sim_board = self.clone();
+        let mut simulation = self.clone();
 
         let mut not_thricefold_repeated = vec![];
         for this_move in moves {
-            sim_board.apply_ply(this_move);
+            simulation.apply_ply(this_move);
 
             // Board position repeated thrice
             if self
                 .repeated_board_count
-                .get(&sim_board.zobrist_hash)
+                .get(&simulation.zobrist_hash)
                 .is_none_or(|&i| i < 3)
             {
                 not_thricefold_repeated.push(this_move);
             }
 
-            sim_board.rewind_last_move();
+            simulation.rewind_last_move();
         }
         let moves = not_thricefold_repeated;
 
@@ -218,25 +218,25 @@ impl Board {
 
         let mut legal_moves = vec![];
         'next: for this_move in moves {
-            sim_board.apply_ply(this_move);
+            simulation.apply_ply(this_move);
 
-            for tile in sim_board.board.iter() {
+            for tile in simulation.board.iter() {
                 if let Some(piece) = tile {
                     // We only care about the other color
                     if piece.color != this_move.by.color {
                         // We don't really care if the opponents move is legal, just if the king is threatened
-                        let moves = piece.generate_pseudolegal_moves(&sim_board);
+                        let moves = piece.generate_pseudolegal_moves(&simulation);
 
                         // if any of the pseudolegal moves contain the king's position, it is threatened
                         if moves.iter().any(|next_move| {
-                            sim_board
+                            simulation
                                 .piece_map
                                 .get(&(this_move.by.color, PieceType::King))
                                 .unwrap()
                                 .contains(&next_move.move_to.to)
                         }) {
                             // Rewind the applied move, try next one
-                            sim_board.rewind_last_move();
+                            simulation.rewind_last_move();
                             continue 'next;
                         }
                     }
@@ -244,7 +244,7 @@ impl Board {
             }
 
             // No early exit from the tile checking, this move appears to be legal
-            sim_board.rewind_last_move();
+            simulation.rewind_last_move();
             legal_moves.push(this_move);
         }
 
@@ -438,14 +438,14 @@ impl Board {
             }
         }
 
-        let doubled_pawns = white_pawns_per_column
-            .iter()
-            .filter(|&count| *count > 1)
-            .count() as i32
-            - black_pawns_per_column
-                .iter()
-                .filter(|&count| *count > 1)
-                .count() as i32;
+        // let doubled_pawns = white_pawns_per_column
+        //     .iter()
+        //     .filter(|&count| *count > 1)
+        //     .count() as i32
+        //     - black_pawns_per_column
+        //         .iter()
+        //         .filter(|&count| *count > 1)
+        //         .count() as i32;
 
         // let pawn_score = -((BLOCKED_PAWN_WEIGHT * blocked_pawns)
         //     + (DOUBLED_PAWN_WEIGHT * doubled_pawns)
@@ -455,18 +455,6 @@ impl Board {
 
         (material_score + pawn_score + (MOVEMENT_WEIGHT * move_score))
             * self.next_move_by.score_sign()
-    }
-
-    pub fn unsorted_move_list(&self) -> Vec<Ply> {
-        let mut moves = vec![];
-        for piece in self.board.clone().iter().flatten() {
-            if piece.color == self.next_move_by {
-                if let Some(these_moves) = self.get_moves_for_pos(piece.pos) {
-                    moves.extend(these_moves);
-                }
-            }
-        }
-        moves
     }
 
     /// applies MVV-LVA on the unsorted move list
@@ -514,13 +502,13 @@ impl Board {
             alpha = eval;
         }
 
-        let mut sim_board = self.clone();
+        let mut simulation = self.clone();
         for ply in self.capturing_move_list() {
-            sim_board.apply_ply(ply);
-            let score = sim_board
+            simulation.apply_ply(ply);
+            let score = simulation
                 .quiescence_search(beta.saturating_neg(), alpha.saturating_neg())
                 .saturating_neg();
-            sim_board.rewind_last_move();
+            simulation.rewind_last_move();
 
             if score > best_score {
                 best_score = score;
@@ -544,16 +532,16 @@ impl Board {
             );
         };
 
-        let mut sim_board = self.clone();
+        let mut simulation = self.clone();
 
         let mut best_move = (i32::MIN, None);
         for this_move in self.sorted_move_list() {
-            sim_board.apply_ply(this_move);
-            let score = sim_board
+            simulation.apply_ply(this_move);
+            let score = simulation
                 .alpha_beta(beta.saturating_neg(), alpha.saturating_neg(), depth - 1)
                 .0
                 .saturating_neg();
-            sim_board.rewind_last_move();
+            simulation.rewind_last_move();
 
             if score > best_move.0 {
                 best_move = (score, Some(this_move));
@@ -577,11 +565,11 @@ mod tests {
 
     #[test]
     fn default_board() {
-        let board = Board::default();
+        let game = Game::default();
 
         let mut dict: HashMap<(PieceType, PieceColor), usize> = HashMap::new();
 
-        for piece in board.board.iter().flatten() {
+        for piece in game.board.iter().flatten() {
             if let Some(count) = dict.get_mut(&(piece.piece_type, piece.color)) {
                 *count += 1;
             } else {
@@ -601,27 +589,27 @@ mod tests {
         assert_eq!(dict.get(&(PieceType::Queen, PieceColor::Black)), Some(&1));
         assert_eq!(dict.get(&(PieceType::King, PieceColor::White)), Some(&1));
         assert_eq!(dict.get(&(PieceType::King, PieceColor::Black)), Some(&1));
-        assert_eq!(board.board.len(), 8 * 8);
+        assert_eq!(game.board.len(), 8 * 8);
     }
 
     #[test]
     fn row_and_column_to_idx_test() {
-        let board = Board {
+        let game = Game {
             row_length: 16,
             ..Default::default()
         };
-        let result = board.row_and_column_to_idx(0, 0);
+        let result = game.row_and_column_to_idx(0, 0);
         assert_eq!(result, 0);
 
-        let result = board.row_and_column_to_idx(15, 15);
+        let result = game.row_and_column_to_idx(15, 15);
         assert_eq!(result, 255);
 
-        let result = board.row_and_column_to_idx(10, 2);
+        let result = game.row_and_column_to_idx(10, 2);
         assert_eq!(result, 162);
     }
     #[test]
     fn apply_ply() {
-        let mut board = Board::from_str(
+        let mut game = Game::from_str(
             r#"
             P0
             0p
@@ -650,12 +638,12 @@ mod tests {
             ..Default::default()
         };
 
-        board.apply_ply(ply);
-        assert_eq!(board.board.len(), 4);
+        game.apply_ply(ply);
+        assert_eq!(game.board.len(), 4);
 
-        assert_eq!(board.moves.len(), 1);
+        assert_eq!(game.moves.len(), 1);
         assert_eq!(
-            board.board[0],
+            game.board[0],
             Some(Piece {
                 piece_type: PieceType::Pawn,
                 color: PieceColor::White,
@@ -668,14 +656,14 @@ mod tests {
 
     #[test]
     fn rewind_move() {
-        let mut board = Board::from_str(
+        let mut game = Game::from_str(
             r#"
             P0
             0p
             "#,
             2,
         );
-        let frozen_board = board.board.clone();
+        let frozen_board = game.board.clone();
         let ply = super::Ply {
             move_to: MoveTo {
                 from: Pos::new(1, 1),
@@ -696,16 +684,16 @@ mod tests {
             ..Default::default()
         };
 
-        board.apply_ply(ply);
-        assert_ne!(board.board, frozen_board);
-        board.rewind_last_move();
-        assert_eq!(board.board, frozen_board);
+        game.apply_ply(ply);
+        assert_ne!(game.board, frozen_board);
+        game.rewind_last_move();
+        assert_eq!(game.board, frozen_board);
     }
 
     #[test]
     fn evaluate_default_board() {
-        let board = Board::default();
-        let eval = board.evaluate();
+        let game = Game::default();
+        let eval = game.evaluate();
 
         // score should be 0 since both sides are fully even
         assert_eq!(eval, 0);
@@ -713,7 +701,7 @@ mod tests {
 
     #[test]
     fn evaluate_white_advantage() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
             RK00
             0000
@@ -721,13 +709,13 @@ mod tests {
             "#,
             4,
         );
-        let eval = board.evaluate();
+        let eval = game.evaluate();
         assert!(eval.is_positive());
     }
 
     #[test]
     fn evaluate_pawn_strategic_disadvantages() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
             PPPPP
             00p00
@@ -737,13 +725,13 @@ mod tests {
             5,
         );
 
-        let eval = board.evaluate();
+        let eval = game.evaluate();
         assert!(eval.is_negative());
     }
 
     #[test]
     fn evaluate_movement_disadvantages() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
             N0000
             00000
@@ -754,14 +742,14 @@ mod tests {
             5,
         );
 
-        let eval = board.evaluate();
+        let eval = game.evaluate();
         assert_ne!(eval, 0);
         assert!(eval.is_positive());
     }
 
     #[test]
     fn evaluate_negamax() {
-        let mut board = Board::from_str(
+        let mut game = Game::from_str(
             r#"
                 N0000
                 00000
@@ -771,16 +759,16 @@ mod tests {
                 "#,
             5,
         );
-        board.next_move_by = PieceColor::Black;
+        game.next_move_by = PieceColor::Black;
 
-        let eval = board.evaluate();
+        let eval = game.evaluate();
         assert_ne!(eval, 0);
         assert!(eval.is_negative());
     }
 
     #[test]
     fn find_best_move() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
                 R0000r
                 ppN000
@@ -791,7 +779,7 @@ mod tests {
             6,
         );
 
-        let next_move = board.search_next_move(3);
+        let next_move = game.search_next_move(3);
         let expected_move = super::Ply {
             move_to: MoveTo {
                 from: Pos::new(1, 1),
@@ -818,7 +806,7 @@ mod tests {
 
     #[test]
     fn find_best_move_black() {
-        let mut board = Board::from_str(
+        let mut game = Game::from_str(
             r#"
                 R000r
                 pp000
@@ -828,9 +816,9 @@ mod tests {
                 "#,
             5,
         );
-        board.next_move_by = PieceColor::Black;
+        game.next_move_by = PieceColor::Black;
 
-        let next_move = board.search_next_move(1);
+        let next_move = game.search_next_move(1);
         let expected_move = super::Ply {
             move_to: MoveTo {
                 from: Pos::new(0, 0),
@@ -857,7 +845,7 @@ mod tests {
 
     #[test]
     fn quiescence_search_prevents_losses() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
                 R0000Q
                 00000p
@@ -868,7 +856,7 @@ mod tests {
             6,
         );
 
-        let next_move = board.search_next_move(1);
+        let next_move = game.search_next_move(1);
         let avoided_capture = super::Ply {
             move_to: MoveTo {
                 from: Pos::new(2, 0),
@@ -895,7 +883,7 @@ mod tests {
 
     #[test]
     fn thricefold_draw_prevention() {
-        let mut board = Board::from_str(
+        let mut game = Game::from_str(
             r#"
                 0
                 r
@@ -904,12 +892,12 @@ mod tests {
         );
 
         for _ in 0..5 {
-            let (_, ply) = board.search_next_move(1);
-            board.apply_ply(ply.unwrap());
-            board.next_move_by = PieceColor::White;
+            let (_, ply) = game.search_next_move(1);
+            game.apply_ply(ply.unwrap());
+            game.next_move_by = PieceColor::White;
         }
 
-        let (_, no_ply) = board.search_next_move(1);
+        let (_, no_ply) = game.search_next_move(1);
         assert!(no_ply.is_none());
     }
 }

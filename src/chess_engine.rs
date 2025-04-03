@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-mod board;
-use board::Board;
+mod game;
+use game::Game;
 
 mod moves;
 mod pieces;
@@ -14,6 +14,6 @@ mod zobrist;
 pub struct ChessEnginePlugin;
 impl Plugin for ChessEnginePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Board>().add_plugins(ChessDebugPlugin);
+        app.init_resource::<Game>().add_plugins(ChessDebugPlugin);
     }
 }

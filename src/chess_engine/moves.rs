@@ -97,11 +97,11 @@ impl Ply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chess_engine::board::Board;
+    use crate::chess_engine::game::Game;
 
     #[test]
     fn apply_vec_to_pos() {
-        let board = Board::from_str(
+        let game = Game::from_str(
             r#"
             000
             000
@@ -113,28 +113,23 @@ mod tests {
 
         let pos = Pos::new(1, 1);
         assert!(
-            board
-                .apply_vec_to_pos(pos, &MoveVec { x: 1, y: 1 })
+            game.apply_vec_to_pos(pos, &MoveVec { x: 1, y: 1 })
                 .is_some()
         );
         assert!(
-            board
-                .apply_vec_to_pos(pos, &MoveVec { x: -1, y: -1 })
+            game.apply_vec_to_pos(pos, &MoveVec { x: -1, y: -1 })
                 .is_some()
         );
         assert!(
-            board
-                .apply_vec_to_pos(pos, &MoveVec { x: 2, y: 1 })
+            game.apply_vec_to_pos(pos, &MoveVec { x: 2, y: 1 })
                 .is_some()
         );
         assert!(
-            board
-                .apply_vec_to_pos(pos, &MoveVec { x: 3, y: 1 })
+            game.apply_vec_to_pos(pos, &MoveVec { x: 3, y: 1 })
                 .is_none()
         );
         assert!(
-            board
-                .apply_vec_to_pos(pos, &MoveVec { x: -2, y: 1 })
+            game.apply_vec_to_pos(pos, &MoveVec { x: -2, y: 1 })
                 .is_none()
         );
     }

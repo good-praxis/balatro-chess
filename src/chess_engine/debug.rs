@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use super::board::Board;
+use super::game::Game;
 
 pub struct ChessDebugPlugin;
 impl Plugin for ChessDebugPlugin {
@@ -26,7 +26,7 @@ impl Default for DebugFlags {
     }
 }
 
-fn setup_debug(mut commands: Commands, assets: Res<AssetServer>, board: Res<Board>) {
+fn setup_debug(mut commands: Commands, assets: Res<AssetServer>, board: Res<Game>) {
     let font = assets.load("fonts/FSEX300.ttf");
     let text_color = TextColor(Color::WHITE);
     let text_font = TextFont {
@@ -43,17 +43,17 @@ fn setup_debug(mut commands: Commands, assets: Res<AssetServer>, board: Res<Boar
 
 fn print_and_play(
     mut query: Query<&mut Text, With<DebugText>>,
-    mut board: ResMut<Board>,
+    mut game: ResMut<Game>,
     mut debug_flags: ResMut<DebugFlags>,
 ) {
     if debug_flags.running {
         std::thread::sleep(Duration::from_secs_f32(0.5));
-        if let Some(ply) = board.search_next_move(3).1 {
-            board.apply_ply(ply);
-            query.single_mut().0 = board.to_string();
+        if let Some(ply) = game.search_next_move(3).1 {
+            game.apply_ply(ply);
+            query.single_mut().0 = game.to_string();
         } else {
-            let mut string = board.to_string();
-            string.push_str(&format!("\n{:?} lost!", board.next_move_by));
+            let mut string = game.to_string();
+            string.push_str(&format!("\n{:?} lost!", game.next_move_by));
             query.single_mut().0 = string;
             debug_flags.running = false;
         }

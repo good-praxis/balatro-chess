@@ -4,7 +4,9 @@ use strum::IntoEnumIterator;
 
 use super::pieces::{PieceColor, PieceType};
 
-#[derive(Clone, Debug, Deref, DerefMut)]
+mod bitwise_traits;
+
+#[derive(Clone, Debug, Deref, DerefMut, PartialEq, Eq)]
 pub struct Bitboard(u128);
 
 impl Display for Bitboard {
@@ -29,13 +31,13 @@ impl Display for Bitboard {
 impl Bitboard {
     #[inline]
     pub fn set(&mut self, index: u32, value: bool) {
-        self.0 = self.0 & !(1 << index);
-        self.0 = self.0 | ((value as u128) << index);
+        *self &= !(1 << index);
+        *self |= (value as u128) << index;
     }
 
     #[inline]
     pub fn get(&self, index: u32) -> bool {
-        self.0 & (1 << index) != 0
+        **self & (1u128 << index) != 0
     }
 }
 
@@ -116,6 +118,23 @@ pub fn bitboard_idx(piece_type: PieceType, piece_color: PieceColor) -> usize {
 mod tests {
     use super::*;
     use crate::chess_engine::game::Game;
+
+    #[test]
+    fn bitboard_getter() {
+        let bitboard = Bitboard(0b01);
+
+        assert!(bitboard.get(0));
+        assert!(!bitboard.get(1));
+    }
+
+    #[test]
+    fn bitboard_setter() {
+        let mut bitboard = Bitboard(0b01);
+        bitboard.set(0, false);
+        bitboard.set(1, true);
+
+        assert_eq!(*bitboard, 0b10);
+    }
 
     #[test]
     fn limits_default_amount() {

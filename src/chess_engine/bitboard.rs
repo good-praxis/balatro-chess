@@ -10,19 +10,32 @@ pub struct Bitboard(u128);
 impl Display for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut board_str = String::new();
-        let mut copy = self.0.to_be();
+        let mut copy = self.0;
         for _ in 0..16 {
             for _ in 0..16 {
-                if copy.leading_ones() == 0 {
+                if copy & 1 == 0 {
                     board_str.push('.');
                 } else {
                     board_str.push('1');
                 }
-                copy = copy.overflowing_shl(1).0;
+                copy = copy.wrapping_shr(1);
             }
             board_str.push('\n');
         }
         write!(f, "{}", board_str)
+    }
+}
+
+impl Bitboard {
+    #[inline]
+    pub fn set(&mut self, index: u32, value: bool) {
+        self.0 = self.0 & !(1 << index);
+        self.0 = self.0 | ((value as u128) << index);
+    }
+
+    #[inline]
+    pub fn get(&self, index: u32) -> bool {
+        self.0 & (1 << index) != 0
     }
 }
 
@@ -38,29 +51,26 @@ impl Bitboards {
     pub fn from_str(input: &str) -> Self {
         let bitboard_count = PieceType::iter().count() * PieceColor::iter().count();
         let mut boards = vec![Bitboard(0u128); bitboard_count];
-        let mut last_idx_of_insert = vec![0; bitboard_count];
         let mut limits = Bitboard(0u128);
         let mut idx = 0;
-        let mut since_whitespace: u32 = 0;
+        let mut since_newline: u32 = 0;
         for char in input.trim().chars() {
             // board limit
             if char == '\n' {
-                let delta = since_whitespace.abs_diff(16);
-                *limits = limits.overflowing_shl(delta).0;
+                let delta = since_newline.abs_diff(16);
                 idx += delta;
-                since_whitespace = 0;
+                since_newline = 0;
                 continue;
             }
             // any other whitespace
             if char.is_whitespace() {
                 continue;
             }
-            if since_whitespace >= 16 {
+            if since_newline >= 16 {
                 panic!("Board too wide! Size of 16x16 is the limit");
             }
-            since_whitespace += 1;
-            *limits = limits.overflowing_shl(1).0;
-            *limits += 0b1;
+            since_newline += 1;
+            limits.set(idx, true);
 
             // Empty square
             if char == '0' {
@@ -84,28 +94,11 @@ impl Bitboards {
                 _ => panic!("Unexpected char: {}", char),
             };
 
-            // Get last idx for delta
-            let bitboard_idx = bitboard_idx(piece_type, color);
-            let since_last_insert = last_idx_of_insert[bitboard_idx];
-            last_idx_of_insert[bitboard_idx] = idx;
-            // Amount of bits since last insert
-            let delta = idx - since_last_insert;
-
-            // shift bitboard in question, add 1
-            *boards[bitboard_idx] = boards[bitboard_idx].overflowing_shl(delta).0;
-            *boards[bitboard_idx] += 0b1;
+            // flip bit in question
+            boards[bitboard_idx(piece_type, color)].set(idx, true);
 
             // increment index
             idx += 1;
-        }
-
-        idx = 127;
-        for (i, delta) in last_idx_of_insert
-            .iter()
-            .map(|i| i.abs_diff(idx))
-            .enumerate()
-        {
-            *boards[i] = boards[i].overflowing_shl(delta).0;
         }
 
         dbg!(limits.to_string());

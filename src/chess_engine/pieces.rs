@@ -1,10 +1,9 @@
-use std::cmp::Ordering;
-
 use super::{
     game::Game,
     moves::{MoveVec, Ply, Pos},
 };
 use bevy::prelude::*;
+use std::cmp::Ordering;
 use strum_macros::EnumIter;
 
 #[derive(Component, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]

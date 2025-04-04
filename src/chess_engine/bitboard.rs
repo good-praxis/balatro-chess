@@ -4,9 +4,10 @@ use strum::IntoEnumIterator;
 
 use super::pieces::{PieceColor, PieceType};
 
-mod bitwise_traits;
+pub mod bitwise_traits;
+mod move_gen;
 
-#[derive(Clone, Debug, Deref, DerefMut, PartialEq, Eq)]
+#[derive(Clone, Debug, Deref, DerefMut, PartialEq, Eq, Copy)]
 pub struct Bitboard(u128);
 
 impl Display for Bitboard {
@@ -102,9 +103,6 @@ impl Bitboards {
             // increment index
             idx += 1;
         }
-
-        dbg!(limits.to_string());
-
         Self { boards, limits }
     }
 }
@@ -173,5 +171,9 @@ mod tests {
         assert_eq!(bb[bitboard_idx(Bishop, Black)].count_ones(), 2);
         assert_eq!(bb[bitboard_idx(Pawn, White)].count_ones(), 8);
         assert_eq!(bb[bitboard_idx(Pawn, Black)].count_ones(), 8);
+
+        let all_pieces = bb.into_iter().reduce(|acc, e| acc | e).unwrap();
+        assert_eq!(all_pieces.count_ones(), 32);
+        dbg!(all_pieces.to_string());
     }
 }

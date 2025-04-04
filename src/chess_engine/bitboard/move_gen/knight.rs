@@ -1,6 +1,7 @@
 use crate::chess_engine::bitboard::Bitboard;
 
 impl Bitboard {
+    /// Cumulative pseudolegal unlimited mask of knight moves
     pub fn knight_move_mask(&self) -> Self {
         self.knight_move_arr()
             .into_iter()
@@ -8,6 +9,7 @@ impl Bitboard {
             .unwrap()
     }
 
+    /// Pseudolegal unlimited moves by king
     pub fn knight_move_arr(&self) -> [Self; 8] {
         [
             self.shift_nww(),

@@ -75,6 +75,117 @@ impl Bitboard {
     fn limit(&self, limit: &Self) -> Self {
         *self & *limit
     }
+
+    // fill-in-direction until running into a `blocked` bit (exclusive) or `capturable` bit (inclusive)
+    fn fill_we(&self, blocked: &Self, capturable: &Self) -> Self {
+        let mut board = Bitboard(0);
+        let mut current = self.shift_we();
+        while *current != 0 && *current & **blocked == 0 {
+            board |= current;
+            if *current & **capturable != 0 {
+                break;
+            }
+            current = current.shift_we();
+        }
+
+        board
+    }
+
+    fn fill_nw(&self, blocked: &Self, capturable: &Self) -> Self {
+        let mut board = Bitboard(0);
+        let mut current = self.shift_nw();
+        while *current != 0 && *current & **blocked == 0 {
+            board |= current;
+            if *current & **capturable != 0 {
+                break;
+            }
+            current = current.shift_nw();
+        }
+
+        board
+    }
+
+    fn fill_no(&self, blocked: &Self, capturable: &Self) -> Self {
+        let mut board = Bitboard(0);
+        let mut current = self.shift_no();
+        while *current != 0 && *current & **blocked == 0 {
+            board |= current;
+            if *current & **capturable != 0 {
+                break;
+            }
+            current = current.shift_no();
+        }
+
+        board
+    }
+
+    fn fill_ne(&self, blocked: &Self, capturable: &Self) -> Self {
+        let mut board = Bitboard(0);
+        let mut current = self.shift_ne();
+        while *current != 0 && *current & **blocked == 0 {
+            board |= current;
+            if *current & **capturable != 0 {
+                break;
+            }
+            current = current.shift_ne();
+        }
+
+        board
+    }
+    fn fill_ea(&self, blocked: &Self, capturable: &Self) -> Self {
+        let mut board = Bitboard(0);
+        let mut current = self.shift_ea();
+        while *current != 0 && *current & **blocked == 0 {
+            board |= current;
+            if *current & **capturable != 0 {
+                break;
+            }
+            current = current.shift_ea();
+        }
+
+        board
+    }
+
+    fn fill_se(&self, blocked: &Self, capturable: &Self) -> Self {
+        let mut board = Bitboard(0);
+        let mut current = self.shift_se();
+        while *current != 0 && *current & **blocked == 0 {
+            board |= current;
+            if *current & **capturable != 0 {
+                break;
+            }
+            current = current.shift_se();
+        }
+
+        board
+    }
+
+    fn fill_so(&self, blocked: &Self, capturable: &Self) -> Self {
+        let mut board = Bitboard(0);
+        let mut current = self.shift_so();
+        while *current != 0 && *current & **blocked == 0 {
+            board |= current;
+            if *current & **capturable != 0 {
+                break;
+            }
+            current = current.shift_so();
+        }
+
+        board
+    }
+    fn fill_sw(&self, blocked: &Self, capturable: &Self) -> Self {
+        let mut board = Bitboard(0);
+        let mut current = self.shift_sw();
+        while *current != 0 && *current & **blocked == 0 {
+            board |= current;
+            if *current & **capturable != 0 {
+                break;
+            }
+            current = current.shift_sw();
+        }
+
+        board
+    }
 }
 
 #[cfg(test)]
@@ -261,5 +372,201 @@ mod tests {
         let board = boards.boards[bitboard_idx(PieceType::King, PieceColor::White)];
         let res = board.king_move_mask().limit(&boards.limits);
         assert_eq!(res.count_ones(), 3);
+    }
+
+    #[test]
+    fn fill_west() {
+        let boards = Bitboards::from_str(
+            r#"
+            R00r
+            "#,
+        );
+        let expected = Bitboards::from_str(
+            r#"
+            rrr0
+            "#,
+        )
+        .boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+
+        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+
+        assert_eq!(board.fill_we(&!boards.limits, &capturable), expected);
+    }
+
+    #[test]
+    fn fill_east() {
+        let boards = Bitboards::from_str(
+            r#"
+            r00R
+            "#,
+        );
+        let expected = Bitboards::from_str(
+            r#"
+            0rrr
+            "#,
+        )
+        .boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+
+        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+
+        assert_eq!(board.fill_ea(&!boards.limits, &capturable), expected);
+    }
+
+    #[test]
+    fn fill_north() {
+        let boards = Bitboards::from_str(
+            r#"
+            R
+            0
+            0
+            r
+            "#,
+        );
+        let expected = Bitboards::from_str(
+            r#"
+            r
+            r
+            r
+            0
+            "#,
+        )
+        .boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+
+        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+
+        assert_eq!(board.fill_no(&!boards.limits, &capturable), expected);
+    }
+
+    #[test]
+    fn fill_south() {
+        let boards = Bitboards::from_str(
+            r#"
+            r
+            0
+            0
+            R
+            "#,
+        );
+        let expected = Bitboards::from_str(
+            r#"
+            0
+            r
+            r
+            r
+            "#,
+        )
+        .boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+
+        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+
+        assert_eq!(board.fill_so(&!boards.limits, &capturable), expected);
+    }
+
+    #[test]
+    fn fill_northwest() {
+        let boards = Bitboards::from_str(
+            r#"
+            B000
+            0000
+            0000
+            000b
+            "#,
+        );
+        let expected = Bitboards::from_str(
+            r#"
+            b000
+            0b00
+            00b0
+            0000
+            "#,
+        )
+        .boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+
+        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+
+        assert_eq!(board.fill_nw(&!boards.limits, &capturable), expected);
+    }
+
+    #[test]
+    fn fill_northeast() {
+        let boards = Bitboards::from_str(
+            r#"
+            000B
+            0000
+            0000
+            b000
+            "#,
+        );
+        let expected = Bitboards::from_str(
+            r#"
+            000b
+            00b0
+            0b00
+            0000
+            "#,
+        )
+        .boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+
+        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+
+        assert_eq!(board.fill_ne(&!boards.limits, &capturable), expected);
+    }
+
+    #[test]
+    fn fill_southeast() {
+        let boards = Bitboards::from_str(
+            r#"
+            b000
+            0000
+            0000
+            000B
+            "#,
+        );
+        let expected = Bitboards::from_str(
+            r#"
+            0000
+            0b00
+            00b0
+            000b
+            "#,
+        )
+        .boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+
+        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+
+        assert_eq!(board.fill_se(&!boards.limits, &capturable), expected);
+    }
+
+    #[test]
+    fn fill_southwest() {
+        let boards = Bitboards::from_str(
+            r#"
+            000b
+            0000
+            0000
+            B000
+            "#,
+        );
+        let expected = Bitboards::from_str(
+            r#"
+            0000
+            00b0
+            0b00
+            b000
+            "#,
+        )
+        .boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+
+        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+
+        assert_eq!(board.fill_sw(&!boards.limits, &capturable), expected);
     }
 }

@@ -1,7 +1,16 @@
 use super::Bitboard;
 use std::ops::{
-    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Shl, ShlAssign, Shr, ShrAssign,
+    BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr,
+    ShrAssign,
 };
+
+impl Not for Bitboard {
+    type Output = Bitboard;
+
+    fn not(self) -> Self::Output {
+        Self(!*self)
+    }
+}
 
 // Bitboard implementations
 impl BitAnd for Bitboard {

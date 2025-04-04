@@ -77,114 +77,89 @@ impl Bitboard {
     }
 
     // fill-in-direction until running into a `blocked` bit (exclusive) or `capturable` bit (inclusive)
-    fn fill_we(&self, blocked: &Self, capturable: &Self) -> Self {
+    fn fill_dir(&self, dir: fn(&Self) -> Self, blocked: &Self, capturable: &Self) -> Self {
         let mut board = Bitboard(0);
-        let mut current = self.shift_we();
+        let mut current = dir(self);
         while *current != 0 && *current & **blocked == 0 {
             board |= current;
             if *current & **capturable != 0 {
                 break;
             }
-            current = current.shift_we();
+            current = dir(&current);
         }
-
         board
+    }
+
+    fn fill_we(&self, blocked: &Self, capturable: &Self) -> Self {
+        self.fill_dir(Bitboard::shift_we, blocked, capturable)
     }
 
     fn fill_nw(&self, blocked: &Self, capturable: &Self) -> Self {
-        let mut board = Bitboard(0);
-        let mut current = self.shift_nw();
-        while *current != 0 && *current & **blocked == 0 {
-            board |= current;
-            if *current & **capturable != 0 {
-                break;
-            }
-            current = current.shift_nw();
-        }
-
-        board
+        self.fill_dir(Bitboard::shift_nw, blocked, capturable)
     }
 
     fn fill_no(&self, blocked: &Self, capturable: &Self) -> Self {
-        let mut board = Bitboard(0);
-        let mut current = self.shift_no();
-        while *current != 0 && *current & **blocked == 0 {
-            board |= current;
-            if *current & **capturable != 0 {
-                break;
-            }
-            current = current.shift_no();
-        }
-
-        board
+        self.fill_dir(Bitboard::shift_no, blocked, capturable)
     }
 
     fn fill_ne(&self, blocked: &Self, capturable: &Self) -> Self {
-        let mut board = Bitboard(0);
-        let mut current = self.shift_ne();
-        while *current != 0 && *current & **blocked == 0 {
-            board |= current;
-            if *current & **capturable != 0 {
-                break;
-            }
-            current = current.shift_ne();
-        }
-
-        board
+        self.fill_dir(Bitboard::shift_ne, blocked, capturable)
     }
     fn fill_ea(&self, blocked: &Self, capturable: &Self) -> Self {
-        let mut board = Bitboard(0);
-        let mut current = self.shift_ea();
-        while *current != 0 && *current & **blocked == 0 {
-            board |= current;
-            if *current & **capturable != 0 {
-                break;
-            }
-            current = current.shift_ea();
-        }
-
-        board
+        self.fill_dir(Bitboard::shift_ea, blocked, capturable)
     }
-
     fn fill_se(&self, blocked: &Self, capturable: &Self) -> Self {
-        let mut board = Bitboard(0);
-        let mut current = self.shift_se();
-        while *current != 0 && *current & **blocked == 0 {
-            board |= current;
-            if *current & **capturable != 0 {
-                break;
-            }
-            current = current.shift_se();
-        }
-
-        board
+        self.fill_dir(Bitboard::shift_se, blocked, capturable)
     }
 
     fn fill_so(&self, blocked: &Self, capturable: &Self) -> Self {
-        let mut board = Bitboard(0);
-        let mut current = self.shift_so();
-        while *current != 0 && *current & **blocked == 0 {
-            board |= current;
-            if *current & **capturable != 0 {
-                break;
-            }
-            current = current.shift_so();
-        }
-
-        board
+        self.fill_dir(Bitboard::shift_so, blocked, capturable)
     }
     fn fill_sw(&self, blocked: &Self, capturable: &Self) -> Self {
-        let mut board = Bitboard(0);
-        let mut current = self.shift_sw();
+        self.fill_dir(Bitboard::shift_sw, blocked, capturable)
+    }
+
+    // step-in-direction until running into a `blocked` bit (exclusive) or `capturable` bit (inclusive). Returns a Vec of Bitboards
+    fn step_dir(&self, dir: fn(&Self) -> Self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        let mut steps = vec![];
+        let mut current = dir(self);
         while *current != 0 && *current & **blocked == 0 {
-            board |= current;
+            steps.push(current);
             if *current & **capturable != 0 {
                 break;
             }
-            current = current.shift_sw();
+            current = dir(&current);
         }
+        steps
+    }
 
-        board
+    fn step_we(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        self.step_dir(Bitboard::shift_we, blocked, capturable)
+    }
+
+    fn step_nw(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        self.step_dir(Bitboard::shift_nw, blocked, capturable)
+    }
+
+    fn step_no(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        self.step_dir(Bitboard::shift_no, blocked, capturable)
+    }
+
+    fn step_ne(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        self.step_dir(Bitboard::shift_ne, blocked, capturable)
+    }
+    fn step_ea(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        self.step_dir(Bitboard::shift_ea, blocked, capturable)
+    }
+    fn step_se(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        self.step_dir(Bitboard::shift_se, blocked, capturable)
+    }
+
+    fn step_so(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        self.step_dir(Bitboard::shift_so, blocked, capturable)
+    }
+    fn step_sw(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        self.step_dir(Bitboard::shift_sw, blocked, capturable)
     }
 }
 
@@ -198,6 +173,8 @@ mod tests {
     use super::*;
 
     fn king_board() -> Bitboard {
+        let ptr = Bitboard::fill_we;
+
         let boards = Bitboards::from_str(
             r#"
             000
@@ -205,6 +182,7 @@ mod tests {
             000
             "#,
         );
+
         boards.boards[bitboard_idx(PieceType::King, PieceColor::White)]
     }
 
@@ -568,5 +546,135 @@ mod tests {
         let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
 
         assert_eq!(board.fill_sw(&!boards.limits, &capturable), expected);
+    }
+
+    #[test]
+    fn step_west() {
+        let boards = Bitboards::from_str(
+            r#"
+            R00r
+            "#,
+        );
+
+        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+
+        assert_eq!(board.step_we(&!boards.limits, &capturable).len(), 3);
+    }
+
+    #[test]
+    fn step_east() {
+        let boards = Bitboards::from_str(
+            r#"
+            r00R
+            "#,
+        );
+
+        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+
+        assert_eq!(board.step_ea(&!boards.limits, &capturable).len(), 3);
+    }
+
+    #[test]
+    fn step_north() {
+        let boards = Bitboards::from_str(
+            r#"
+            R
+            0
+            0
+            r
+            "#,
+        );
+
+        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+
+        assert_eq!(board.step_no(&!boards.limits, &capturable).len(), 3);
+    }
+
+    #[test]
+    fn step_south() {
+        let boards = Bitboards::from_str(
+            r#"
+            r
+            0
+            0
+            R
+            "#,
+        );
+
+        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+
+        assert_eq!(board.step_so(&!boards.limits, &capturable).len(), 3);
+    }
+
+    #[test]
+    fn step_northwest() {
+        let boards = Bitboards::from_str(
+            r#"
+            B000
+            0000
+            0000
+            000b
+            "#,
+        );
+
+        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+
+        assert_eq!(board.step_nw(&!boards.limits, &capturable).len(), 3);
+    }
+
+    #[test]
+    fn step_northeast() {
+        let boards = Bitboards::from_str(
+            r#"
+            000B
+            0000
+            0000
+            b000
+            "#,
+        );
+
+        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+
+        assert_eq!(board.step_ne(&!boards.limits, &capturable).len(), 3);
+    }
+
+    #[test]
+    fn step_southeast() {
+        let boards = Bitboards::from_str(
+            r#"
+            b000
+            0000
+            0000
+            000B
+            "#,
+        );
+
+        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+
+        assert_eq!(board.step_se(&!boards.limits, &capturable).len(), 3);
+    }
+
+    #[test]
+    fn step_southwest() {
+        let boards = Bitboards::from_str(
+            r#"
+            000b
+            0000
+            0000
+            B000
+            "#,
+        );
+
+        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+
+        assert_eq!(board.step_sw(&!boards.limits, &capturable).len(), 3);
     }
 }

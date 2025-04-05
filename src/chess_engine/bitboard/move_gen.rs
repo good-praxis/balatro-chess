@@ -1,7 +1,10 @@
 use super::Bitboard;
 
+pub mod bishop;
 pub mod king;
 pub mod knight;
+pub mod queen;
+pub mod rook;
 
 impl Bitboard {
     // Common single-step shifts

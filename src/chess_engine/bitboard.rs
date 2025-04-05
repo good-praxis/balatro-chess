@@ -46,6 +46,7 @@ impl Bitboard {
 pub struct Bitboards {
     /// index = PieceType + (PieceColor * amount of PieceType)
     pub boards: Vec<Bitboard>,
+    pub piece_list: Vec<Vec<u32>>,
     /// constrains from board size
     limits: Bitboard,
 }
@@ -54,6 +55,7 @@ impl Bitboards {
     pub fn from_str(input: &str) -> Self {
         let bitboard_count = PieceType::iter().count() * PieceColor::iter().count();
         let mut boards = vec![Bitboard(0u128); bitboard_count];
+        let mut piece_list = vec![vec![]; bitboard_count];
         let mut limits = Bitboard(0u128);
         let mut idx = 0;
         let mut since_newline: u32 = 0;
@@ -100,10 +102,34 @@ impl Bitboards {
             // flip bit in question
             boards[bitboard_idx(piece_type, color)].set(idx, true);
 
+            // update piece_list with piece
+            piece_list[bitboard_idx(piece_type, color)].push(idx);
+
             // increment index
             idx += 1;
         }
-        Self { boards, limits }
+        Self {
+            boards,
+            piece_list,
+            limits,
+        }
+    }
+
+    pub fn all_pieces(&self) -> Bitboard {
+        self.boards.iter().fold(Bitboard(0), |acc, e| acc | *e)
+    }
+
+    pub fn all_pieces_by_color(&self, color: PieceColor) -> Bitboard {
+        let mut board = Bitboard(0);
+        for piece_type in PieceType::iter() {
+            board |= self.boards[bitboard_idx(piece_type, color)];
+        }
+        board
+    }
+
+    /// Used with functions asked for blocking masks
+    pub fn blocked_mask_for_color(&self, color: PieceColor) -> Bitboard {
+        !self.limits | self.all_pieces_by_color(color)
     }
 }
 
@@ -174,6 +200,46 @@ mod tests {
 
         let all_pieces = bb.into_iter().reduce(|acc, e| acc | e).unwrap();
         assert_eq!(all_pieces.count_ones(), 32);
-        dbg!(all_pieces.to_string());
+    }
+
+    #[test]
+    fn expected_piece_list_default() {
+        use PieceColor::*;
+        use PieceType::*;
+        let game = Game::default();
+        let p = game.boards.piece_list;
+        assert_eq!(p[bitboard_idx(King, White)].len(), 1);
+        assert_eq!(p[bitboard_idx(King, Black)].len(), 1);
+        assert_eq!(p[bitboard_idx(Queen, White)].len(), 1);
+        assert_eq!(p[bitboard_idx(Queen, Black)].len(), 1);
+        assert_eq!(p[bitboard_idx(Rook, White)].len(), 2);
+        assert_eq!(p[bitboard_idx(Rook, Black)].len(), 2);
+        assert_eq!(p[bitboard_idx(Knight, White)].len(), 2);
+        assert_eq!(p[bitboard_idx(Knight, Black)].len(), 2);
+        assert_eq!(p[bitboard_idx(Bishop, White)].len(), 2);
+        assert_eq!(p[bitboard_idx(Bishop, Black)].len(), 2);
+        assert_eq!(p[bitboard_idx(Pawn, White)].len(), 8);
+        assert_eq!(p[bitboard_idx(Pawn, Black)].len(), 8);
+    }
+
+    #[test]
+    fn all_pieces() {
+        let game = Game::default();
+        let bitboards = game.boards;
+
+        let all_pieces = bitboards.all_pieces();
+        assert_eq!(all_pieces.count_ones(), 32);
+    }
+
+    #[test]
+    fn all_pieces_by_color() {
+        let game = Game::default();
+        let bitboards = game.boards;
+
+        let white_pieces = bitboards.all_pieces_by_color(PieceColor::White);
+        let black_pieces = bitboards.all_pieces_by_color(PieceColor::Black);
+        assert_eq!(white_pieces.count_ones(), 16);
+        assert_eq!(black_pieces.count_ones(), 16);
+        assert_eq!(white_pieces & black_pieces, 0.into());
     }
 }

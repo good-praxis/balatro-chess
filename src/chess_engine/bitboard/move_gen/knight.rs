@@ -9,7 +9,7 @@ impl Bitboard {
             .unwrap()
     }
 
-    /// Pseudolegal unlimited moves by king
+    /// Pseudolegal unlimited moves by knight
     pub fn knight_move_arr(&self) -> [Self; 8] {
         [
             self.shift_nww(),

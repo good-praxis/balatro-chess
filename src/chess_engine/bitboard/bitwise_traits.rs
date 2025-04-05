@@ -7,8 +7,15 @@ use std::ops::{
 impl Not for Bitboard {
     type Output = Bitboard;
 
+    #[inline]
     fn not(self) -> Self::Output {
         Self(!*self)
+    }
+}
+
+impl From<u128> for Bitboard {
+    fn from(value: u128) -> Self {
+        Self(value)
     }
 }
 

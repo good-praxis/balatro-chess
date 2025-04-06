@@ -13,12 +13,6 @@ impl Not for Bitboard {
     }
 }
 
-impl From<u128> for Bitboard {
-    fn from(value: u128) -> Self {
-        Self(value)
-    }
-}
-
 // Bitboard implementations
 impl BitAnd for Bitboard {
     type Output = Bitboard;

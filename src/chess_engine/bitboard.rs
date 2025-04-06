@@ -7,7 +7,17 @@ use super::pieces::{PieceColor, PieceType};
 pub mod bitwise_traits;
 mod move_gen;
 
-#[derive(Clone, Debug, Deref, DerefMut, PartialEq, Eq, Copy)]
+/// u32 based position on the Bitboard. Derived by couting `trailing_zeros`
+#[derive(Clone, Debug, Default, Deref, DerefMut, PartialEq, Eq, Copy)]
+pub struct BitIndex(u32);
+
+impl From<u32> for BitIndex {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Clone, Debug, Default, Deref, DerefMut, PartialEq, Eq, Copy)]
 pub struct Bitboard(u128);
 
 impl Display for Bitboard {
@@ -29,16 +39,35 @@ impl Display for Bitboard {
     }
 }
 
+impl From<BitIndex> for Bitboard {
+    #[inline]
+    fn from(value: BitIndex) -> Self {
+        Self(1 << *value)
+    }
+}
+
+impl From<u128> for Bitboard {
+    fn from(value: u128) -> Self {
+        Self(value)
+    }
+}
+
 impl Bitboard {
     #[inline]
-    pub fn set(&mut self, index: u32, value: bool) {
-        *self &= !(1 << index);
-        *self |= (value as u128) << index;
+    pub fn set(&mut self, index: BitIndex, value: bool) {
+        *self &= !(1 << *index);
+        *self |= (value as u128) << *index;
     }
 
     #[inline]
-    pub fn get(&self, index: u32) -> bool {
-        **self & (1u128 << index) != 0
+    pub fn get<T: std::ops::Deref<Target = u32>>(&self, index: T) -> bool {
+        **self & (1 << *index) != 0
+    }
+
+    /// Gets the position for the
+    #[inline]
+    pub fn to_bit_idx(&self) -> u32 {
+        self.trailing_zeros()
     }
 }
 
@@ -46,9 +75,14 @@ impl Bitboard {
 pub struct Bitboards {
     /// index = PieceType + (PieceColor * amount of PieceType)
     pub boards: Vec<Bitboard>,
-    pub piece_list: Vec<Vec<u32>>,
-    /// constrains from board size
+    pub piece_list: Vec<Vec<BitIndex>>,
+    /// constrains from board size, 1 = active tile;
     limits: Bitboard,
+    /// mask of all pieces in their initial position.
+    /// updated on moves or captures
+    unmoved_pieces: Bitboard,
+    /// Board of
+    en_passant: Bitboard,
 }
 
 impl Bitboards {
@@ -75,7 +109,7 @@ impl Bitboards {
                 panic!("Board too wide! Size of 16x16 is the limit");
             }
             since_newline += 1;
-            limits.set(idx, true);
+            limits.set(idx.into(), true);
 
             // Empty square
             if char == '0' {
@@ -100,18 +134,23 @@ impl Bitboards {
             };
 
             // flip bit in question
-            boards[bitboard_idx(piece_type, color)].set(idx, true);
+            boards[bitboard_idx(piece_type, color)].set(idx.into(), true);
 
             // update piece_list with piece
-            piece_list[bitboard_idx(piece_type, color)].push(idx);
+            piece_list[bitboard_idx(piece_type, color)].push(idx.into());
 
             // increment index
             idx += 1;
         }
+
+        let unmoved_pieces = boards.iter().fold(Bitboard(0), |acc, e| acc | *e);
+
         Self {
             boards,
             piece_list,
             limits,
+            unmoved_pieces,
+            en_passant: Bitboard(0),
         }
     }
 
@@ -147,15 +186,15 @@ mod tests {
     fn bitboard_getter() {
         let bitboard = Bitboard(0b01);
 
-        assert!(bitboard.get(0));
-        assert!(!bitboard.get(1));
+        assert!(bitboard.get(&0));
+        assert!(!bitboard.get(&1));
     }
 
     #[test]
     fn bitboard_setter() {
         let mut bitboard = Bitboard(0b01);
-        bitboard.set(0, false);
-        bitboard.set(1, true);
+        bitboard.set(0.into(), false);
+        bitboard.set(1.into(), true);
 
         assert_eq!(*bitboard, 0b10);
     }
@@ -241,5 +280,18 @@ mod tests {
         assert_eq!(white_pieces.count_ones(), 16);
         assert_eq!(black_pieces.count_ones(), 16);
         assert_eq!(white_pieces & black_pieces, 0.into());
+    }
+
+    #[test]
+    fn bitboard_from_bit_idx() {
+        let bitboard: Bitboard = BitIndex(3).into();
+        assert_eq!(bitboard, Bitboard(8));
+    }
+
+    #[test]
+    fn bitboard_to_bit_idx() {
+        let mut bitboard = Bitboard(0);
+        bitboard.set(30.into(), true);
+        assert_eq!(bitboard.to_bit_idx(), 30);
     }
 }

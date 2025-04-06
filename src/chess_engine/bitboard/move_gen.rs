@@ -3,6 +3,7 @@ use super::Bitboard;
 pub mod bishop;
 pub mod king;
 pub mod knight;
+pub mod pawn;
 pub mod queen;
 pub mod rook;
 
@@ -193,64 +194,64 @@ mod tests {
     fn shift_west() {
         let board = king_board();
         let shift = board.shift_we();
-        assert!(board.get(17));
-        assert!(shift.get(16));
+        assert!(board.get(&17));
+        assert!(shift.get(&16));
     }
 
     #[test]
     fn shift_northweast() {
         let board = king_board();
         let shift = board.shift_nw();
-        assert!(board.get(17));
-        assert!(shift.get(0));
+        assert!(board.get(&17));
+        assert!(shift.get(&0));
     }
 
     #[test]
     fn shift_north() {
         let board = king_board();
         let shift = board.shift_no();
-        assert!(board.get(17));
-        assert!(shift.get(1));
+        assert!(board.get(&17));
+        assert!(shift.get(&1));
     }
 
     #[test]
     fn shift_northeast() {
         let board = king_board();
         let shift = board.shift_ne();
-        assert!(board.get(17));
-        assert!(shift.get(2));
+        assert!(board.get(&17));
+        assert!(shift.get(&2));
     }
 
     #[test]
     fn shift_east() {
         let board = king_board();
         let shift = board.shift_ea();
-        assert!(board.get(17));
-        assert!(shift.get(18));
+        assert!(board.get(&17));
+        assert!(shift.get(&18));
     }
 
     #[test]
     fn shift_southeast() {
         let board = king_board();
         let shift = board.shift_se();
-        assert!(board.get(17));
-        assert!(shift.get(34));
+        assert!(board.get(&17));
+        assert!(shift.get(&34));
     }
 
     #[test]
     fn shift_south() {
         let board = king_board();
         let shift = board.shift_so();
-        assert!(board.get(17));
-        assert!(shift.get(33));
+        assert!(board.get(&17));
+        assert!(shift.get(&33));
     }
 
     #[test]
     fn shift_southwest() {
         let board = king_board();
         let shift = board.shift_sw();
-        assert!(board.get(17));
-        assert!(shift.get(32));
+        assert!(board.get(&17));
+        assert!(shift.get(&32));
     }
 
     fn knight_board() -> Bitboard {
@@ -270,64 +271,64 @@ mod tests {
     fn shift_northwestwest() {
         let board = knight_board();
         let shift = board.shift_nww();
-        assert!(board.get(34));
-        assert!(shift.get(16));
+        assert!(board.get(&34));
+        assert!(shift.get(&16));
     }
 
     #[test]
     fn shift_northnorthwest() {
         let board = knight_board();
         let shift = board.shift_nnw();
-        assert!(board.get(34));
-        assert!(shift.get(1));
+        assert!(board.get(&34));
+        assert!(shift.get(&1));
     }
 
     #[test]
     fn shift_northnortheast() {
         let board = knight_board();
         let shift = board.shift_nne();
-        assert!(board.get(34));
-        assert!(shift.get(3));
+        assert!(board.get(&34));
+        assert!(shift.get(&3));
     }
 
     #[test]
     fn shift_northeasteast() {
         let board = knight_board();
         let shift = board.shift_nee();
-        assert!(board.get(34));
-        assert!(shift.get(20));
+        assert!(board.get(&34));
+        assert!(shift.get(&20));
     }
 
     #[test]
     fn shift_southeasteast() {
         let board = knight_board();
         let shift = board.shift_see();
-        assert!(board.get(34));
-        assert!(shift.get(52));
+        assert!(board.get(&34));
+        assert!(shift.get(&52));
     }
 
     #[test]
     fn shift_southsoutheast() {
         let board = knight_board();
         let shift = board.shift_sse();
-        assert!(board.get(34));
-        assert!(shift.get(67));
+        assert!(board.get(&34));
+        assert!(shift.get(&67));
     }
 
     #[test]
     fn shift_southsouthwest() {
         let board = knight_board();
         let shift = board.shift_ssw();
-        assert!(board.get(34));
-        assert!(shift.get(65));
+        assert!(board.get(&34));
+        assert!(shift.get(&65));
     }
 
     #[test]
     fn shift_southwestwest() {
         let board = knight_board();
         let shift = board.shift_sww();
-        assert!(board.get(34));
-        assert!(shift.get(48));
+        assert!(board.get(&34));
+        assert!(shift.get(&48));
     }
 
     #[test]

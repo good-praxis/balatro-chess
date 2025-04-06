@@ -75,9 +75,16 @@ impl Bitboard {
         *self << (16 - 1 - 1)
     }
 
-    // limit via `BitAnd` of the `limit` board
-    fn limit(&self, limit: &Self) -> Self {
-        *self & *limit
+    fn shift_in_dirs(
+        &self,
+        dirs: &[fn(&Self) -> Self],
+        blocked: &Self,
+        _capturable: &Self,
+    ) -> Vec<Self> {
+        dirs.iter()
+            .map(|dir| dir(self))
+            .filter(|board| **board & **blocked == 0)
+            .collect()
     }
 
     // fill-in-direction until running into a `blocked` bit (exclusive) or `capturable` bit (inclusive)
@@ -92,6 +99,18 @@ impl Bitboard {
             current = dir(&current);
         }
         board
+    }
+
+    pub fn fill_in_dirs(
+        &self,
+        dirs: &[fn(&Self, &Self, &Self) -> Self],
+        blocked: &Self,
+        capturable: &Self,
+    ) -> Self {
+        dirs.iter()
+            .map(|dir| dir(self, blocked, capturable))
+            .reduce(|acc, e| acc | e)
+            .unwrap_or(Self(0))
     }
 
     fn fill_we(&self, blocked: &Self, capturable: &Self) -> Self {
@@ -137,6 +156,18 @@ impl Bitboard {
         steps
     }
 
+    fn step_in_dirs(
+        &self,
+        dirs: &[fn(&Self, &Self, &Self) -> Vec<Self>],
+        blocked: &Self,
+        capturable: &Self,
+    ) -> Vec<Self> {
+        dirs.iter()
+            .map(|dir| dir(self, blocked, capturable))
+            .flatten()
+            .collect()
+    }
+
     fn step_we(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
         self.step_dir(Bitboard::shift_we, blocked, capturable)
     }
@@ -177,8 +208,6 @@ mod tests {
     use super::*;
 
     fn king_board() -> Bitboard {
-        let ptr = Bitboard::fill_we;
-
         let boards = Bitboards::from_str(
             r#"
             000
@@ -329,31 +358,6 @@ mod tests {
         let shift = board.shift_sww();
         assert!(board.get(&34));
         assert!(shift.get(&48));
-    }
-
-    #[test]
-    fn limit_out_of_range() {
-        let boards = Bitboards::from_str(
-            r#"
-            000
-            000
-            00k
-            "#,
-        );
-        let board = boards.boards[bitboard_idx(PieceType::King, PieceColor::White)];
-        let res = board.king_move_mask().limit(&boards.limits);
-        assert_eq!(res.count_ones(), 3);
-
-        let boards = Bitboards::from_str(
-            r#"
-            k00
-            000
-            000
-            "#,
-        );
-        let board = boards.boards[bitboard_idx(PieceType::King, PieceColor::White)];
-        let res = board.king_move_mask().limit(&boards.limits);
-        assert_eq!(res.count_ones(), 3);
     }
 
     #[test]

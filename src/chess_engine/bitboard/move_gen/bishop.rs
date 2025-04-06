@@ -1,21 +1,16 @@
 use crate::chess_engine::bitboard::Bitboard;
 
 impl Bitboard {
-    /// Cumulative pseudolegal unlimited mask of bishop moves
+    /// Cumulative pseudolegal mask of bishop moves
     pub fn bishop_move_mask(&self, blocked: &Bitboard, capturable: &Bitboard) -> Self {
-        self.fill_nw(blocked, capturable)
-            | self.fill_ne(blocked, capturable)
-            | self.fill_se(blocked, capturable)
-            | self.fill_sw(blocked, capturable)
+        let dirs = [Self::fill_nw, Self::fill_ne, Self::fill_se, Self::fill_sw];
+        self.fill_in_dirs(&dirs, blocked, capturable)
     }
 
-    /// Pseudolegal unlimited moves by bishop
-    pub fn bishop_move_arr(&self, blocked: &Bitboard, capturable: &Bitboard) -> Vec<Self> {
-        let mut moves = self.step_nw(blocked, capturable);
-        moves.extend(self.step_ne(blocked, capturable));
-        moves.extend(self.step_se(blocked, capturable));
-        moves.extend(self.step_sw(blocked, capturable));
-        moves
+    /// Pseudolegal moves by bishop
+    pub fn bishop_move_arr(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        let dirs = [Self::step_nw, Self::step_ne, Self::step_se, Self::step_sw];
+        self.step_in_dirs(&dirs, blocked, capturable)
     }
 }
 

@@ -1,21 +1,16 @@
 use crate::chess_engine::bitboard::Bitboard;
 
 impl Bitboard {
-    /// Cumulative pseudolegal unlimited mask of rook moves (no castling)
+    /// Cumulative pseudolegal mask of rook moves (no castling)
     pub fn rook_move_mask(&self, blocked: &Bitboard, capturable: &Bitboard) -> Self {
-        self.fill_we(blocked, capturable)
-            | self.fill_no(blocked, capturable)
-            | self.fill_ea(blocked, capturable)
-            | self.fill_so(blocked, capturable)
+        let dirs = [Self::fill_we, Self::fill_no, Self::fill_ea, Self::fill_so];
+        self.fill_in_dirs(&dirs, blocked, capturable)
     }
 
-    /// Pseudolegal unlimited moves by rook
+    /// Pseudolegal moves by rook
     pub fn rook_move_arr(&self, blocked: &Bitboard, capturable: &Bitboard) -> Vec<Self> {
-        let mut moves = self.step_we(blocked, capturable);
-        moves.extend(self.step_no(blocked, capturable));
-        moves.extend(self.step_ea(blocked, capturable));
-        moves.extend(self.step_so(blocked, capturable));
-        moves
+        let dirs = [Self::step_we, Self::step_no, Self::step_ea, Self::step_so];
+        self.step_in_dirs(&dirs, blocked, capturable)
     }
 }
 

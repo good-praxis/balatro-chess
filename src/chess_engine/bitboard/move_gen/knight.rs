@@ -1,26 +1,28 @@
 use crate::chess_engine::bitboard::Bitboard;
 
 impl Bitboard {
-    /// Cumulative pseudolegal unlimited mask of knight moves
-    pub fn knight_move_mask(&self) -> Self {
-        self.knight_move_arr()
+    /// Cumulative pseudolegal mask of knight moves
+    pub fn knight_move_mask(&self, blocked: &Self, _capturable: &Self) -> Self {
+        self.knight_move_arr(blocked, _capturable)
             .into_iter()
             .reduce(|acc, e| acc | e)
             .unwrap()
     }
 
-    /// Pseudolegal unlimited moves by knight
-    pub fn knight_move_arr(&self) -> [Self; 8] {
-        [
-            self.shift_nww(),
-            self.shift_nnw(),
-            self.shift_nne(),
-            self.shift_nee(),
-            self.shift_see(),
-            self.shift_sse(),
-            self.shift_ssw(),
-            self.shift_sww(),
-        ]
+    /// Pseudolegal moves by knight
+    pub fn knight_move_arr(&self, blocked: &Self, _capturable: &Self) -> Vec<Self> {
+        let dirs = [
+            Self::shift_nww,
+            Self::shift_nnw,
+            Self::shift_nne,
+            Self::shift_nee,
+            Self::shift_see,
+            Self::shift_sse,
+            Self::shift_ssw,
+            Self::shift_sww,
+        ];
+
+        self.shift_in_dirs(&dirs, blocked, _capturable)
     }
 }
 
@@ -36,7 +38,7 @@ mod tests {
         let boards = Bitboards::from_str(
             r#"
             00000
-            00000
+            0000p
             00n00
             00000
             00000
@@ -47,14 +49,17 @@ mod tests {
         let expected = Bitboards::from_str(
             r#"
             0n0n0
-            n000n
+            n0000
             00000
             n000n
             0n0n0
             "#,
         );
         let expected = expected.boards[bitboard_idx(PieceType::Knight, PieceColor::White)];
-        let mask = board.knight_move_mask();
+        let mask = board.knight_move_mask(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+        );
         assert_eq!(mask, expected);
     }
 }

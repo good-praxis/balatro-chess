@@ -1,26 +1,27 @@
 use crate::chess_engine::bitboard::Bitboard;
 
 impl Bitboard {
-    /// Cumulative pseudolegal unlimited mask of king moves (no castling)
-    pub fn king_move_mask(&self) -> Self {
-        self.king_move_arr()
+    /// Cumulative pseudolegal mask of king moves (no castling)
+    pub fn king_move_mask(&self, blocked: &Self, _capturable: &Self) -> Self {
+        self.king_move_arr(blocked, _capturable)
             .into_iter()
             .reduce(|acc, e| acc | e)
             .unwrap()
     }
 
-    /// Pseudolegal unlimited moves by king
-    pub fn king_move_arr(&self) -> [Self; 8] {
-        [
-            self.shift_we(),
-            self.shift_nw(),
-            self.shift_no(),
-            self.shift_ne(),
-            self.shift_ea(),
-            self.shift_se(),
-            self.shift_so(),
-            self.shift_sw(),
-        ]
+    /// Pseudolegal moves by king
+    pub fn king_move_arr(&self, blocked: &Self, _capturable: &Self) -> Vec<Self> {
+        let dirs = [
+            Self::shift_we,
+            Self::shift_nw,
+            Self::shift_no,
+            Self::shift_ne,
+            Self::shift_ea,
+            Self::shift_se,
+            Self::shift_so,
+            Self::shift_sw,
+        ];
+        self.shift_in_dirs(&dirs, blocked, _capturable)
     }
 }
 
@@ -35,7 +36,7 @@ mod tests {
     fn king_move_mask() {
         let boards = Bitboards::from_str(
             r#"
-            000
+            00r
             0k0
             000
             "#,
@@ -44,13 +45,16 @@ mod tests {
 
         let expected = Bitboards::from_str(
             r#"
-            kkk
+            kk0
             k0k
             kkk
             "#,
         );
         let expected = expected.boards[bitboard_idx(PieceType::King, PieceColor::White)];
-        let mask = board.king_move_mask();
+        let mask = board.king_move_mask(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+        );
         assert_eq!(mask, expected);
     }
 }

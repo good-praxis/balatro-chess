@@ -1,29 +1,35 @@
 use crate::chess_engine::bitboard::Bitboard;
 
 impl Bitboard {
-    /// Cumulative pseudolegal unlimited mask of queen moves
+    /// Cumulative pseudolegal mask of queen moves
     pub fn queen_move_mask(&self, blocked: &Bitboard, capturable: &Bitboard) -> Self {
-        self.fill_we(blocked, capturable)
-            | self.fill_nw(blocked, capturable)
-            | self.fill_no(blocked, capturable)
-            | self.fill_ne(blocked, capturable)
-            | self.fill_ea(blocked, capturable)
-            | self.fill_se(blocked, capturable)
-            | self.fill_so(blocked, capturable)
-            | self.fill_sw(blocked, capturable)
+        let dirs = [
+            Self::fill_we,
+            Self::fill_nw,
+            Self::fill_no,
+            Self::fill_ne,
+            Self::fill_ea,
+            Self::fill_se,
+            Self::fill_so,
+            Self::fill_sw,
+        ];
+
+        self.fill_in_dirs(&dirs, blocked, capturable)
     }
 
-    /// Pseudolegal unlimited moves by queen
+    /// Pseudolegal moves by queen
     pub fn queen_move_arr(&self, blocked: &Bitboard, capturable: &Bitboard) -> Vec<Self> {
-        let mut moves = self.step_we(blocked, capturable);
-        moves.extend(self.step_nw(blocked, capturable));
-        moves.extend(self.step_no(blocked, capturable));
-        moves.extend(self.step_ne(blocked, capturable));
-        moves.extend(self.step_ea(blocked, capturable));
-        moves.extend(self.step_se(blocked, capturable));
-        moves.extend(self.step_so(blocked, capturable));
-        moves.extend(self.step_sw(blocked, capturable));
-        moves
+        let dirs = [
+            Self::step_we,
+            Self::step_nw,
+            Self::step_no,
+            Self::step_ne,
+            Self::step_ea,
+            Self::step_se,
+            Self::step_so,
+            Self::step_sw,
+        ];
+        self.step_in_dirs(&dirs, blocked, capturable)
     }
 }
 

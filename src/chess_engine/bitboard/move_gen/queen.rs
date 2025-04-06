@@ -31,6 +31,11 @@ impl Bitboard {
         ];
         self.step_in_dirs(&dirs, blocked, capturable)
     }
+
+    /// Mask of threatened positions
+    pub fn queen_en_prise_mask(&self, blocked: &Self, capturable: &Self) -> Self {
+        self.queen_move_mask(blocked, capturable)
+    }
 }
 
 #[cfg(test)]
@@ -84,6 +89,36 @@ mod tests {
         );
         let expected = expected.boards[bitboard_idx(PieceType::Queen, PieceColor::White)];
         let mask = board.queen_move_mask(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+        );
+        assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn queen_en_prise_mask() {
+        let boards = Bitboards::from_str(
+            r#"
+            0000P
+            00000
+            00q00
+            00000
+            00000
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::Queen, PieceColor::White)];
+
+        let expected = Bitboards::from_str(
+            r#"
+            q0q0q
+            0qqq0
+            qq0qq
+            0qqq0
+            q0q0q
+            "#,
+        );
+        let expected = expected.boards[bitboard_idx(PieceType::Queen, PieceColor::White)];
+        let mask = board.queen_en_prise_mask(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
         );

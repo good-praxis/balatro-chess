@@ -12,8 +12,16 @@ mod move_gen;
 pub struct BitIndex(u32);
 
 impl From<u32> for BitIndex {
+    #[inline]
     fn from(value: u32) -> Self {
         Self(value)
+    }
+}
+
+impl From<Bitboard> for BitIndex {
+    #[inline]
+    fn from(value: Bitboard) -> Self {
+        Self(value.to_bit_idx())
     }
 }
 
@@ -47,6 +55,7 @@ impl From<BitIndex> for Bitboard {
 }
 
 impl From<u128> for Bitboard {
+    #[inline]
     fn from(value: u128) -> Self {
         Self(value)
     }
@@ -81,7 +90,7 @@ pub struct Bitboards {
     /// mask of all pieces in their initial position.
     /// updated on moves or captures
     unmoved_pieces: Bitboard,
-    /// Board of
+    /// Board of en passant vulnerable positions
     en_passant: Bitboard,
 }
 

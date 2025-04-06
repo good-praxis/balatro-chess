@@ -23,6 +23,11 @@ impl Bitboard {
         ];
         self.shift_in_dirs(&dirs, blocked, _capturable)
     }
+
+    /// Mask of threatened positions
+    pub fn king_en_prise_mask(&self, blocked: &Self, capturable: &Self) -> Self {
+        self.king_move_mask(blocked, capturable)
+    }
 }
 
 #[cfg(test)]
@@ -52,6 +57,32 @@ mod tests {
         );
         let expected = expected.boards[bitboard_idx(PieceType::King, PieceColor::White)];
         let mask = board.king_move_mask(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+        );
+        assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn king_en_prise_mask() {
+        let boards = Bitboards::from_str(
+            r#"
+            000
+            0k0
+            000
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::King, PieceColor::White)];
+
+        let expected = Bitboards::from_str(
+            r#"
+            kkk
+            k0k
+            kkk
+            "#,
+        );
+        let expected = expected.boards[bitboard_idx(PieceType::King, PieceColor::White)];
+        let mask = board.king_en_prise_mask(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
         );

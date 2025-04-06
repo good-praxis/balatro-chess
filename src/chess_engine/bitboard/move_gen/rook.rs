@@ -1,7 +1,7 @@
 use crate::chess_engine::bitboard::Bitboard;
 
 impl Bitboard {
-    /// Cumulative pseudolegal mask of rook moves (no castling)
+    /// Cumulative pseudolegal  mask of rook moves (no castling)
     pub fn rook_move_mask(&self, blocked: &Bitboard, capturable: &Bitboard) -> Self {
         let dirs = [Self::fill_we, Self::fill_no, Self::fill_ea, Self::fill_so];
         self.fill_in_dirs(&dirs, blocked, capturable)
@@ -11,6 +11,11 @@ impl Bitboard {
     pub fn rook_move_arr(&self, blocked: &Bitboard, capturable: &Bitboard) -> Vec<Self> {
         let dirs = [Self::step_we, Self::step_no, Self::step_ea, Self::step_so];
         self.step_in_dirs(&dirs, blocked, capturable)
+    }
+
+    /// Mask of threatened positions
+    pub fn rook_en_prise_mask(&self, blocked: &Self, capturable: &Self) -> Self {
+        self.rook_move_mask(blocked, capturable)
     }
 }
 
@@ -45,7 +50,7 @@ mod tests {
     fn rook_move_mask() {
         let boards = Bitboards::from_str(
             r#"
-            00p00
+            00000
             00000
             00r0P
             00000
@@ -56,7 +61,7 @@ mod tests {
 
         let expected = Bitboards::from_str(
             r#"
-            00000
+            00r00
             00r00
             rr0rr
             00r00
@@ -65,6 +70,36 @@ mod tests {
         );
         let expected = expected.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
         let mask = board.rook_move_mask(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+        );
+        assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn rook_en_prise_mask() {
+        let boards = Bitboards::from_str(
+            r#"
+            00000
+            00000
+            00r0P
+            00000
+            00000
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+
+        let expected = Bitboards::from_str(
+            r#"
+            00r00
+            00r00
+            rr0rr
+            00r00
+            00r00
+            "#,
+        );
+        let expected = expected.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        let mask = board.rook_en_prise_mask(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
         );

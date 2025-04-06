@@ -75,6 +75,7 @@ impl Bitboard {
         *self << (16 - 1 - 1)
     }
 
+    /// Returns a vector of all unblocked shifted positions for single-step movement pieces
     fn shift_in_dirs(
         &self,
         dirs: &[fn(&Self) -> Self],
@@ -101,6 +102,7 @@ impl Bitboard {
         board
     }
 
+    /// Returns a bitmask filled into all directions until running into a blocked (exclusive) or capturable (inclusive) bit
     pub fn fill_in_dirs(
         &self,
         dirs: &[fn(&Self, &Self, &Self) -> Self],
@@ -156,6 +158,7 @@ impl Bitboard {
         steps
     }
 
+    /// Steps towards directions until running into a blocked (exclusive) or capturable (inclusive) bit
     fn step_in_dirs(
         &self,
         dirs: &[fn(&Self, &Self, &Self) -> Vec<Self>],

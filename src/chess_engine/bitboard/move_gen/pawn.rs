@@ -1,5 +1,13 @@
 use crate::chess_engine::{bitboard::Bitboard, pieces::PieceColor};
 
+fn pawn_dir(color: PieceColor) -> fn(&Bitboard) -> Bitboard {
+    if color == PieceColor::White {
+        Bitboard::shift_no
+    } else {
+        Bitboard::shift_so
+    }
+}
+
 impl Bitboard {
     /// Cumulative pseudolegal mask of pawn moves
     pub fn pawn_move_mask(
@@ -15,7 +23,6 @@ impl Bitboard {
             .reduce(|acc, e| acc | e)
             .unwrap()
     }
-
     /// Pseudolegal moves by pawn
     pub fn pawn_move_arr(
         &self,
@@ -25,11 +32,7 @@ impl Bitboard {
         unmoved_pieces: &Self,
         en_passant: &Self,
     ) -> Vec<Self> {
-        let dir = if color == PieceColor::White {
-            Self::shift_no
-        } else {
-            Self::shift_so
-        };
+        let dir = pawn_dir(color);
         let mut moves = vec![];
 
         let normal = dir(self);
@@ -74,12 +77,30 @@ impl Bitboard {
 
         moves
     }
+
+    /// Mask of threatened positions
+    pub fn pawn_en_prise_mask(&self, blocked: &Self, color: PieceColor) -> Self {
+        let mut mask = Bitboard(0);
+        let normal = pawn_dir(color)(self);
+        // Normal captures
+        let capture_one = normal.shift_we();
+        if *capture_one & **blocked == 0 {
+            mask |= capture_one;
+        }
+
+        let capture_two = normal.shift_ea();
+        if *capture_two & **blocked == 0 {
+            mask |= capture_two;
+        }
+
+        mask
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::chess_engine::{
-        bitboard::{Bitboards, bitboard_idx},
+        bitboard::{Bitboard, Bitboards, bitboard_idx},
         pieces::{PieceColor, PieceType},
     };
 
@@ -155,6 +176,54 @@ mod tests {
             PieceColor::Black,
             &boards.unmoved_pieces,
             &en_passant,
+        );
+        assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn white_pawn_en_prise_mask() {
+        let boards = Bitboards::from_str(
+            r#"
+            000
+            0p0
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+
+        let expected = Bitboards::from_str(
+            r#"
+            p0p
+            000
+            "#,
+        );
+        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let mask = board.pawn_en_prise_mask(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            PieceColor::White,
+        );
+        assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn black_pawn_en_prise_mask() {
+        let boards = Bitboards::from_str(
+            r#"
+            0P0
+            000
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::Black)];
+
+        let expected = Bitboards::from_str(
+            r#"
+            000
+            p0p
+            "#,
+        );
+        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let mask = board.pawn_en_prise_mask(
+            &boards.blocked_mask_for_color(PieceColor::Black),
+            PieceColor::Black,
         );
         assert_eq!(mask, expected);
     }

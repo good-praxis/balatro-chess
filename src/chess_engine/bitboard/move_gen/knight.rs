@@ -1,4 +1,22 @@
-use crate::chess_engine::bitboard::Bitboard;
+use std::collections::BinaryHeap;
+
+use crate::chess_engine::{
+    bitboard::Bitboard,
+    pieces::{PieceColor, PieceType},
+};
+
+use super::ply::Ply;
+
+const KNIGHT_DIRS: [fn(&Bitboard) -> Bitboard; 8] = [
+    Bitboard::shift_nww,
+    Bitboard::shift_nnw,
+    Bitboard::shift_nne,
+    Bitboard::shift_nee,
+    Bitboard::shift_see,
+    Bitboard::shift_sse,
+    Bitboard::shift_ssw,
+    Bitboard::shift_sww,
+];
 
 impl Bitboard {
     /// Cumulative pseudolegal mask of knight moves
@@ -11,23 +29,22 @@ impl Bitboard {
 
     /// Pseudolegal moves by knight
     pub fn knight_move_arr(&self, blocked: &Self, _capturable: &Self) -> Vec<Self> {
-        let dirs = [
-            Self::shift_nww,
-            Self::shift_nnw,
-            Self::shift_nne,
-            Self::shift_nee,
-            Self::shift_see,
-            Self::shift_sse,
-            Self::shift_ssw,
-            Self::shift_sww,
-        ];
-
-        self.shift_in_dirs(&dirs, blocked, _capturable)
+        self.shift_in_dirs(&KNIGHT_DIRS, blocked, _capturable)
     }
 
     /// Mask of threatened positions
     pub fn knight_en_prise_mask(&self, blocked: &Self, capturable: &Self) -> Self {
         self.knight_move_mask(blocked, capturable)
+    }
+
+    pub fn knight_plys(
+        &self,
+        blocked: &Self,
+        capturable: &Self,
+        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        piece: (PieceType, PieceColor),
+    ) -> BinaryHeap<Ply> {
+        self.single_step_plys_in_dirs(&KNIGHT_DIRS, blocked, capturable, capturable_iter, piece)
     }
 }
 
@@ -96,5 +113,28 @@ mod tests {
             &boards.all_pieces_by_color(PieceColor::Black),
         );
         assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn knight_plys() {
+        let boards = Bitboards::from_str(
+            r#"
+            00000
+            0000P
+            00n00
+            00000
+            00000
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::Knight, PieceColor::White)];
+
+        let mut plys = board.knight_plys(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+            boards.all_piece_types_by_color(PieceColor::Black),
+            (PieceType::Knight, PieceColor::White),
+        );
+        assert_eq!(plys.len(), 8);
+        assert!(plys.pop().unwrap().capturing.is_some())
     }
 }

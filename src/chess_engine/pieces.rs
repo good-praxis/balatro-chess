@@ -299,7 +299,9 @@ impl Piece {
     }
 }
 
-#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, EnumIter)]
+#[derive(
+    Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash, EnumIter, PartialOrd, Ord,
+)]
 pub enum PieceType {
     King,
     Queen,

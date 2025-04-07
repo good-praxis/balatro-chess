@@ -4,6 +4,7 @@ pub mod bishop;
 pub mod king;
 pub mod knight;
 pub mod pawn;
+pub mod ply;
 pub mod queen;
 pub mod rook;
 
@@ -84,7 +85,7 @@ impl Bitboard {
     ) -> Vec<Self> {
         dirs.iter()
             .map(|dir| dir(self))
-            .filter(|board| **board & **blocked == 0)
+            .filter(|board| **board != 0 && **board & **blocked == 0)
             .collect()
     }
 

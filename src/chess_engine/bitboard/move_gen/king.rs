@@ -1,4 +1,22 @@
-use crate::chess_engine::bitboard::Bitboard;
+use std::collections::BinaryHeap;
+
+use crate::chess_engine::{
+    bitboard::Bitboard,
+    pieces::{PieceColor, PieceType},
+};
+
+use super::ply::Ply;
+
+pub(crate) const KING_DIRS: [fn(&Bitboard) -> Bitboard; 8] = [
+    Bitboard::shift_we,
+    Bitboard::shift_nw,
+    Bitboard::shift_no,
+    Bitboard::shift_ne,
+    Bitboard::shift_ea,
+    Bitboard::shift_se,
+    Bitboard::shift_so,
+    Bitboard::shift_sw,
+];
 
 impl Bitboard {
     /// Cumulative pseudolegal mask of king moves (no castling)
@@ -11,22 +29,22 @@ impl Bitboard {
 
     /// Pseudolegal moves by king
     pub fn king_move_arr(&self, blocked: &Self, _capturable: &Self) -> Vec<Self> {
-        let dirs = [
-            Self::shift_we,
-            Self::shift_nw,
-            Self::shift_no,
-            Self::shift_ne,
-            Self::shift_ea,
-            Self::shift_se,
-            Self::shift_so,
-            Self::shift_sw,
-        ];
-        self.shift_in_dirs(&dirs, blocked, _capturable)
+        self.shift_in_dirs(&KING_DIRS, blocked, _capturable)
     }
 
     /// Mask of threatened positions
-    pub fn king_en_prise_mask(&self, blocked: &Self, capturable: &Self) -> Self {
-        self.king_move_mask(blocked, capturable)
+    pub fn king_en_prise_mask(&self, blocked: &Self, _capturable: &Self) -> Self {
+        self.king_move_mask(blocked, _capturable)
+    }
+
+    pub fn king_plys(
+        &self,
+        blocked: &Self,
+        capturable: &Self,
+        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        piece: (PieceType, PieceColor),
+    ) -> BinaryHeap<Ply> {
+        self.single_step_plys_in_dirs(&KING_DIRS, blocked, capturable, capturable_iter, piece)
     }
 }
 
@@ -64,6 +82,47 @@ mod tests {
     }
 
     #[test]
+    fn king_move_mask_corner() {
+        let boards = Bitboards::from_str(
+            r#"
+            k0
+            00
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::King, PieceColor::White)];
+
+        let expected = Bitboards::from_str(
+            r#"
+            0k
+            kk
+            "#,
+        );
+        let expected = expected.boards[bitboard_idx(PieceType::King, PieceColor::White)];
+        let mask = board.king_move_mask(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+        );
+        assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn king_move_arr_corner() {
+        let boards = Bitboards::from_str(
+            r#"
+            k0
+            00
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::King, PieceColor::White)];
+
+        let arr = board.king_move_arr(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+        );
+        assert_eq!(arr.len(), 3);
+    }
+
+    #[test]
     fn king_en_prise_mask() {
         let boards = Bitboards::from_str(
             r#"
@@ -87,5 +146,26 @@ mod tests {
             &boards.all_pieces_by_color(PieceColor::Black),
         );
         assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn king_plys() {
+        let boards = Bitboards::from_str(
+            r#"
+            00P
+            0k0
+            000
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::King, PieceColor::White)];
+
+        let mut plys = board.king_plys(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+            boards.all_piece_types_by_color(PieceColor::Black),
+            (PieceType::King, PieceColor::White),
+        );
+        assert_eq!(plys.len(), 8);
+        assert!(plys.pop().unwrap().capturing.is_some())
     }
 }

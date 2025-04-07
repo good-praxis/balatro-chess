@@ -1,4 +1,11 @@
-use crate::chess_engine::{bitboard::Bitboard, pieces::PieceColor};
+use std::collections::BinaryHeap;
+
+use crate::chess_engine::{
+    bitboard::Bitboard,
+    pieces::{PieceColor, PieceType},
+};
+
+use super::ply::Ply;
 
 fn pawn_dir(color: PieceColor) -> fn(&Bitboard) -> Bitboard {
     if color == PieceColor::White {
@@ -36,42 +43,31 @@ impl Bitboard {
         let mut moves = vec![];
 
         let normal = dir(self);
-        if *normal & **blocked == 0 {
+        if *normal != 0 && *normal & **blocked == 0 {
             moves.push(normal);
 
             // Normal push was possible, check for double
             if **self & **unmoved_pieces != 0 {
                 let double = dir(&normal);
-                if *double & **blocked == 0 {
-                    // TODO: en_passant marker
+                if *double != 0 && *double & **blocked == 0 {
                     moves.push(double);
                 }
             }
         }
 
-        // Normal captures
-        let capture_one = normal.shift_we();
-        if *capture_one & **capturable != 0 {
-            // TODO: capture flag
-            moves.push(capture_one)
-        }
-
-        let capture_two = normal.shift_ea();
-        if *capture_two & **capturable != 0 {
-            // TODO: capture flag
-            moves.push(capture_two)
-        }
-
-        // en passant
-        if **en_passant != 0 {
-            if *capture_one & **en_passant != 0 {
-                // TODO: mark captured piece
-                moves.push(capture_one);
+        let capture_dirs = [Bitboard::shift_we, Bitboard::shift_ea];
+        for dir in capture_dirs {
+            // Normal captures
+            let capture = dir(&normal);
+            if *capture & **capturable != 0 {
+                moves.push(capture)
             }
 
-            if *capture_two & **en_passant != 0 {
-                // TODO: mark captured piece
-                moves.push(capture_two);
+            // en passant
+            if **en_passant != 0 {
+                if *capture & **en_passant != 0 {
+                    moves.push(capture);
+                }
             }
         }
 
@@ -95,12 +91,93 @@ impl Bitboard {
 
         mask
     }
+
+    pub fn pawn_plys(
+        &self,
+        blocked: &Self,
+        capturable: &Self,
+        capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        color: PieceColor,
+        unmoved_pieces: &Self,
+        en_passant: &Self,
+    ) -> BinaryHeap<Ply> {
+        let dir = pawn_dir(color);
+        let mut moves = BinaryHeap::new();
+
+        let bit_idx = self.to_bit_idx();
+
+        let normal = dir(self);
+        if *normal != 0 && *normal & **blocked == 0 {
+            moves.push(Ply {
+                moving_piece: (PieceType::Pawn, color),
+                from: bit_idx,
+                to: normal.to_bit_idx(),
+                ..Default::default()
+            });
+
+            // Normal push was possible, check for double
+            if **self & **unmoved_pieces != 0 {
+                let double = dir(&normal);
+                if *double != 0 && *double & **blocked == 0 {
+                    moves.push(Ply {
+                        moving_piece: (PieceType::Pawn, color),
+                        from: bit_idx,
+                        to: double.to_bit_idx(),
+                        en_passant_board: Some(normal),
+                        ..Default::default()
+                    });
+                }
+            }
+        }
+
+        // Normal captures
+        let capture_dirs = [Bitboard::shift_we, Bitboard::shift_ea];
+        for dir in capture_dirs {
+            let mut capturing = None;
+            let capture = dir(&normal);
+            if *capture & **capturable != 0 {
+                // There is a capture present
+                for (piece_type, opposing_board) in capturing_iter.clone() {
+                    let capture = capture & opposing_board;
+                    if *capture != 0 {
+                        capturing = Some((piece_type, capture.to_bit_idx()))
+                    }
+                }
+                moves.push(Ply {
+                    moving_piece: (PieceType::Pawn, color),
+                    from: bit_idx,
+                    to: capture.to_bit_idx(),
+                    capturing,
+                    ..Default::default()
+                })
+            }
+
+            // en passant
+            if **en_passant != 0 {
+                let capture = dir(&normal);
+                if *capture & **en_passant != 0 {
+                    moves.push(Ply {
+                        moving_piece: (PieceType::Pawn, color),
+                        from: bit_idx,
+                        to: capture.to_bit_idx(),
+                        capturing: Some((
+                            PieceType::Pawn,
+                            pawn_dir(color.next())(&capture).to_bit_idx(),
+                        )),
+                        ..Default::default()
+                    });
+                }
+            }
+        }
+
+        moves
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::chess_engine::{
-        bitboard::{Bitboard, Bitboards, bitboard_idx},
+        bitboard::{Bitboards, bitboard_idx},
         pieces::{PieceColor, PieceType},
     };
 
@@ -226,5 +303,60 @@ mod tests {
             PieceColor::Black,
         );
         assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn pawn_plys() {
+        let boards = Bitboards::from_str(
+            r#"
+            000
+            P00
+            0p0
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+
+        let mut plys = board.pawn_plys(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+            boards.all_piece_types_by_color(PieceColor::Black),
+            PieceColor::White,
+            &boards.unmoved_pieces,
+            &boards.en_passant,
+        );
+        assert_eq!(plys.len(), 3);
+        assert!(plys.pop().unwrap().capturing.is_some())
+    }
+
+    #[test]
+    fn pawn_plys_en_passant() {
+        let boards = Bitboards::from_str(
+            r#"
+            pP0
+            000
+            000
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::Black)];
+
+        let en_passant = Bitboards::from_str(
+            r#"
+            000
+            p00
+            000
+            "#,
+        );
+        let en_passant = en_passant.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+
+        let mut plys = board.pawn_plys(
+            &boards.blocked_mask_for_color(PieceColor::Black),
+            &boards.all_pieces_by_color(PieceColor::White),
+            boards.all_piece_types_by_color(PieceColor::White),
+            PieceColor::Black,
+            &boards.unmoved_pieces,
+            &en_passant,
+        );
+        assert_eq!(plys.len(), 3);
+        assert!(plys.pop().unwrap().capturing.is_some())
     }
 }

@@ -21,7 +21,7 @@ impl From<u32> for BitIndex {
 impl From<Bitboard> for BitIndex {
     #[inline]
     fn from(value: Bitboard) -> Self {
-        Self(value.to_bit_idx())
+        value.to_bit_idx()
     }
 }
 
@@ -75,8 +75,8 @@ impl Bitboard {
 
     /// Gets the position for the
     #[inline]
-    pub fn to_bit_idx(&self) -> u32 {
-        self.trailing_zeros()
+    pub fn to_bit_idx(&self) -> BitIndex {
+        self.trailing_zeros().into()
     }
 }
 
@@ -173,6 +173,15 @@ impl Bitboards {
             board |= self.boards[bitboard_idx(piece_type, color)];
         }
         board
+    }
+
+    /// Primarily used when we don't want a full mask of all pieces, but want to determine which piece we are capturing
+    pub fn all_piece_types_by_color(
+        &self,
+        color: PieceColor,
+    ) -> impl Iterator<Item = (PieceType, Bitboard)> + Clone {
+        PieceType::iter()
+            .map(move |piece_type| (piece_type, self.boards[bitboard_idx(piece_type, color)]))
     }
 
     /// Used with functions asked for blocking masks
@@ -301,6 +310,6 @@ mod tests {
     fn bitboard_to_bit_idx() {
         let mut bitboard = Bitboard(0);
         bitboard.set(30.into(), true);
-        assert_eq!(bitboard.to_bit_idx(), 30);
+        assert_eq!(bitboard.to_bit_idx(), 30.into());
     }
 }

@@ -1,4 +1,18 @@
-use crate::chess_engine::bitboard::Bitboard;
+use std::collections::BinaryHeap;
+
+use crate::chess_engine::{
+    bitboard::Bitboard,
+    pieces::{PieceColor, PieceType},
+};
+
+use super::ply::Ply;
+
+const BISHOP_STEP_DIRS: [fn(&Bitboard, &Bitboard, &Bitboard) -> Vec<Bitboard>; 4] = [
+    Bitboard::step_nw,
+    Bitboard::step_ne,
+    Bitboard::step_se,
+    Bitboard::step_sw,
+];
 
 impl Bitboard {
     /// Cumulative pseudolegal mask of bishop moves
@@ -9,13 +23,28 @@ impl Bitboard {
 
     /// Pseudolegal moves by bishop
     pub fn bishop_move_arr(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {
-        let dirs = [Self::step_nw, Self::step_ne, Self::step_se, Self::step_sw];
-        self.step_in_dirs(&dirs, blocked, capturable)
+        self.step_in_dirs(&BISHOP_STEP_DIRS, blocked, capturable)
     }
 
     /// Mask of threatened positions
     pub fn bishop_en_prise_mask(&self, blocked: &Self, capturable: &Self) -> Self {
         self.bishop_move_mask(blocked, capturable)
+    }
+
+    pub fn bishop_plys(
+        &self,
+        blocked: &Self,
+        capturable: &Self,
+        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        piece: (PieceType, PieceColor),
+    ) -> BinaryHeap<Ply> {
+        self.multi_step_plys_in_dirs(
+            &BISHOP_STEP_DIRS,
+            blocked,
+            capturable,
+            capturable_iter,
+            piece,
+        )
     }
 }
 
@@ -80,7 +109,7 @@ mod tests {
     fn bishop_en_prise_mask() {
         let boards = Bitboards::from_str(
             r#"
-            0000P
+            p000P
             00000
             00b00
             00000
@@ -104,5 +133,28 @@ mod tests {
             &boards.all_pieces_by_color(PieceColor::Black),
         );
         assert_eq!(mask, expected);
+    }
+
+    #[test]
+    fn bishop_plys() {
+        let boards = Bitboards::from_str(
+            r#"
+            0000P
+            00000
+            00b00
+            00000
+            00000
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+
+        let mut plys = board.bishop_plys(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+            boards.all_piece_types_by_color(PieceColor::Black),
+            (PieceType::Bishop, PieceColor::White),
+        );
+        assert_eq!(plys.len(), 8);
+        assert!(plys.pop().unwrap().capturing.is_some())
     }
 }

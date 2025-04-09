@@ -14,6 +14,8 @@ use super::{
 pub mod bitwise_traits;
 mod move_gen;
 
+mod search;
+
 pub use move_gen::ply::Ply;
 
 /// u32 based position on the Bitboard. Derived by couting `trailing_zeros`

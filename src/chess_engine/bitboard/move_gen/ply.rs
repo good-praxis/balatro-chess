@@ -236,6 +236,26 @@ impl Bitboards {
             .zobrist_table
             .update_hash_bitboard(self.zobrist_hash, ply);
     }
+
+    fn legality_check(&self, last_move_by: PieceColor) -> bool {
+        // thricefold repetiton check
+        let thricefold_repetition = self
+            .visited_positions
+            .lock()
+            .unwrap()
+            .get(&self.zobrist_hash)
+            .is_some_and(|i| *i >= 3);
+
+        if thricefold_repetition {
+            return false;
+        }
+
+        // king check
+        let king_mask = self.boards[bitboard_idx(PieceType::King, last_move_by)];
+        let opponent_en_prise = self.en_prise_by_color(last_move_by.next());
+
+        *king_mask & *opponent_en_prise == 0
+    }
 }
 
 #[cfg(test)]
@@ -606,5 +626,48 @@ mod tests {
             bitboard.visited_positions.lock().unwrap().get(&hash),
             Some(&0)
         );
+    }
+
+    #[test]
+    fn legal_move() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        R0
+        r0
+        k0
+        "#,
+        );
+
+        let ply = Ply {
+            moving_piece: (PieceType::Rook, PieceColor::White),
+            from: 16.into(),
+            to: 0.into(),
+            capturing: Some((PieceType::Rook, 0.into())),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        assert!(bitboard.legality_check(ply.moving_piece.1));
+    }
+
+    #[test]
+    fn illegal_move() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        R0
+        r0
+        k0
+        "#,
+        );
+
+        let ply = Ply {
+            moving_piece: (PieceType::Rook, PieceColor::White),
+            from: 16.into(),
+            to: 17.into(),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        assert!(!bitboard.legality_check(ply.moving_piece.1));
     }
 }

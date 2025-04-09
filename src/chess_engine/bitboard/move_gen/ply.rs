@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, collections::BinaryHeap};
 
 use crate::chess_engine::{
-    bitboard::{BitIndex, Bitboard},
+    bitboard::{BitIndex, Bitboard, Bitboards, bitboard_idx},
     pieces::{PieceColor, PieceType},
 };
 
@@ -136,11 +136,88 @@ impl Bitboard {
     }
 }
 
+impl Bitboards {
+    pub fn make_ply(&mut self, ply: &Ply) {
+        // Updating moving piece
+        let moving_piece_idx = bitboard_idx(ply.moving_piece.0, ply.moving_piece.1);
+        self.boards[moving_piece_idx].set(ply.from, false);
+        self.boards[moving_piece_idx].set(ply.to, true);
+
+        // Handle capturing
+        if let Some((piece_type, idx)) = ply.capturing {
+            // update position boards
+            let capturing_idx = bitboard_idx(piece_type, ply.moving_piece.1.next());
+            self.boards[capturing_idx].set(idx, false);
+
+            // update piece list
+            let piece_list = self.piece_list[capturing_idx]
+                .iter()
+                .cloned()
+                .filter(|this_idx| *this_idx != idx)
+                .collect();
+            self.piece_list[capturing_idx] = piece_list;
+        }
+
+        // Handle linked move
+        if let Some((piece_type, piece_color, from, to)) = ply.also_move {
+            let moving_piece_idx = bitboard_idx(piece_type, piece_color);
+            self.boards[moving_piece_idx].set(from, false);
+            self.boards[moving_piece_idx].set(to, true);
+        }
+
+        // en passant
+        let en_passant = ply.en_passant_board.unwrap_or(0.into());
+        self.en_passant = en_passant;
+
+        // update hash
+        self.zobrist_hash = self
+            .zobrist_table
+            .update_hash_bitboard(self.zobrist_hash, ply);
+    }
+
+    pub fn unmake_ply(&mut self, ply: &Ply, previous_ply: Option<&Ply>) {
+        // Updating moving piece
+        let moving_piece_idx = bitboard_idx(ply.moving_piece.0, ply.moving_piece.1);
+        self.boards[moving_piece_idx].set(ply.to, false);
+        self.boards[moving_piece_idx].set(ply.from, true);
+
+        // Handle capturing
+        if let Some((piece_type, idx)) = ply.capturing {
+            // update position boards
+            let capturing_idx = bitboard_idx(piece_type, ply.moving_piece.1.next());
+            self.boards[capturing_idx].set(idx, true);
+
+            // update piece list
+            self.piece_list[capturing_idx].push(idx);
+        }
+
+        // Handle linked move
+        if let Some((piece_type, piece_color, from, to)) = ply.also_move {
+            let moving_piece_idx = bitboard_idx(piece_type, piece_color);
+            self.boards[moving_piece_idx].set(to, false);
+            self.boards[moving_piece_idx].set(from, true);
+        }
+
+        // restore en_passant
+        if let Some(ply) = previous_ply {
+            let en_passant = ply.en_passant_board.unwrap_or(0.into());
+            self.en_passant = en_passant;
+        } else {
+            self.en_passant = 0.into();
+        }
+
+        // update hash
+        self.zobrist_hash = self
+            .zobrist_table
+            .update_hash_bitboard(self.zobrist_hash, ply);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::chess_engine::{
         bitboard::{
-            Bitboards, bitboard_idx,
+            Bitboard, Bitboards, bitboard_idx,
             move_gen::{king::KING_DIRS, queen::QUEEN_STEP_DIRS},
         },
         pieces::{PieceColor, PieceType},
@@ -251,5 +328,199 @@ mod tests {
                 queen_no_take,
             ]
         )
+    }
+
+    #[test]
+    fn make_ply() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        0
+        p
+        "#,
+        );
+
+        let expected = Bitboards::from_str(
+            r#"
+        p
+        0
+        "#,
+        );
+
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 16.into(),
+            to: 0.into(),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        assert_eq!(bitboard, expected);
+    }
+
+    #[test]
+    fn unmake_ply() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        0
+        p
+        "#,
+        );
+
+        let expected = bitboard.clone();
+
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 16.into(),
+            to: 0.into(),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        bitboard.unmake_ply(&ply, None);
+        assert_eq!(bitboard, expected);
+    }
+
+    #[test]
+    fn make_capture_ply() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        0P
+        p0
+        "#,
+        );
+
+        let expected = Bitboards::from_str(
+            r#"
+        0p
+        00
+        "#,
+        );
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 16.into(),
+            to: 1.into(),
+            capturing: Some((PieceType::Pawn, 1.into())),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        assert_eq!(bitboard, expected);
+    }
+
+    #[test]
+    fn unmake_capture_ply() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        0
+        p
+        "#,
+        );
+
+        let expected = bitboard.clone();
+
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 16.into(),
+            to: 1.into(),
+            capturing: Some((PieceType::Pawn, 1.into())),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        bitboard.unmake_ply(&ply, None);
+        assert_eq!(bitboard, expected);
+    }
+
+    #[test]
+    fn make_en_passant_ply() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        00
+        00
+        p0
+        "#,
+        );
+
+        let expected = Bitboards::from_str(
+            r#"
+        00
+        p0
+        00
+        "#,
+        );
+        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 32.into(),
+            to: 0.into(),
+            en_passant_board: Some(Bitboard(1 << 16)),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        assert_eq!(bitboard.en_passant, expected);
+    }
+
+    #[test]
+    fn unmake_en_passant_ply() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        00
+        00
+        p0
+        "#,
+        );
+
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 32.into(),
+            to: 0.into(),
+            en_passant_board: Some(Bitboard(1 << 16)),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        bitboard.unmake_ply(&ply, None);
+        assert_eq!(bitboard.en_passant, 0.into());
+    }
+
+    #[test]
+    fn unmake_en_passant_restore_ply() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        00
+        00
+        p0
+        "#,
+        );
+
+        let expected = Bitboards::from_str(
+            r#"
+        00
+        p0
+        00
+        "#,
+        );
+        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+
+        let first_ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 32.into(),
+            to: 0.into(),
+            en_passant_board: Some(Bitboard(1 << 16)),
+            ..Default::default()
+        };
+
+        let second_ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 0.into(),
+            to: 16.into(),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&first_ply);
+        bitboard.make_ply(&second_ply);
+        bitboard.unmake_ply(&second_ply, Some(&first_ply));
+        assert_eq!(bitboard.en_passant, expected);
     }
 }

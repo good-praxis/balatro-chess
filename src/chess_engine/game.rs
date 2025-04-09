@@ -119,8 +119,8 @@ impl Game {
             idx += 1;
         }
 
-        let zobrist_table = Arc::new(Zobrist::new(board.len()));
-        let zobrist_hash = zobrist_table.gen_initial_hash(&board);
+        let zobrist_table = Arc::new(Zobrist::new(board.len() as u32));
+        let zobrist_hash = zobrist_table.gen_initial_hash_mailbox(&board);
 
         let mut visited = HashMap::new();
         visited.insert(zobrist_hash, 1);
@@ -284,7 +284,7 @@ impl Game {
         // Update zobrist hash
         self.zobrist_hash = self
             .zobrist_table
-            .update_hash(&self, self.zobrist_hash, ply);
+            .update_hash_mailbox(&self, self.zobrist_hash, ply);
 
         // Thricefold repeatition count
         *self
@@ -301,9 +301,9 @@ impl Game {
                 .or_insert(0) -= 1;
 
             // update hash
-            self.zobrist_hash = self
-                .zobrist_table
-                .update_hash(self, self.zobrist_hash, rewind);
+            self.zobrist_hash =
+                self.zobrist_table
+                    .update_hash_mailbox(self, self.zobrist_hash, rewind);
 
             // update inner pos on piece
             let mut piece = self[rewind.move_to.to].unwrap();

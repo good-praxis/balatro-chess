@@ -24,7 +24,7 @@ impl Bitboard {
         self.knight_move_arr(blocked, _capturable)
             .into_iter()
             .reduce(|acc, e| acc | e)
-            .unwrap()
+            .unwrap_or(Self(0))
     }
 
     /// Pseudolegal moves by knight

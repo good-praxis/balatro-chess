@@ -109,7 +109,7 @@ mod tests {
     fn bishop_en_prise_mask() {
         let boards = Bitboards::from_str(
             r#"
-            p000P
+            0000P
             00000
             00b00
             00000

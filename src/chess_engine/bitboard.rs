@@ -1,11 +1,16 @@
 use bevy::prelude::*;
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 use strum::IntoEnumIterator;
 
-use super::pieces::{PieceColor, PieceType};
+use super::{
+    pieces::{PieceColor, PieceType},
+    zobrist::Zobrist,
+};
 
 pub mod bitwise_traits;
 mod move_gen;
+
+pub use move_gen::ply::Ply;
 
 /// u32 based position on the Bitboard. Derived by couting `trailing_zeros`
 #[derive(Clone, Debug, Default, Deref, DerefMut, PartialEq, Eq, Copy)]
@@ -92,6 +97,16 @@ pub struct Bitboards {
     unmoved_pieces: Bitboard,
     /// Board of en passant vulnerable positions
     en_passant: Bitboard,
+
+    // Zobrist hashing
+    pub zobrist_table: Arc<Zobrist>,
+    pub zobrist_hash: u32,
+}
+
+impl PartialEq for Bitboards {
+    fn eq(&self, other: &Self) -> bool {
+        self.zobrist_hash == other.zobrist_hash
+    }
 }
 
 impl Bitboards {
@@ -103,7 +118,6 @@ impl Bitboards {
         let mut idx = 0;
         let mut since_newline: u32 = 0;
         for char in input.trim().chars() {
-            // board limit
             if char == '\n' {
                 let delta = since_newline.abs_diff(16);
                 idx += delta;
@@ -154,13 +168,43 @@ impl Bitboards {
 
         let unmoved_pieces = boards.iter().fold(Bitboard(0), |acc, e| acc | *e);
 
-        Self {
+        let zobrist_table = Arc::new(Zobrist::new(128));
+
+        let mut new_bitboards = Self {
             boards,
             piece_list,
             limits,
             unmoved_pieces,
             en_passant: Bitboard(0),
-        }
+            zobrist_table,
+            zobrist_hash: 0,
+        };
+
+        let zobrist_hash = new_bitboards
+            .zobrist_table
+            .gen_initial_hash_bitboard(new_bitboards.key_value_pieces_iter());
+        new_bitboards.zobrist_hash = zobrist_hash;
+        new_bitboards
+    }
+
+    pub fn key_value_pieces_iter(
+        &self,
+    ) -> impl Iterator<Item = ((PieceType, PieceColor), BitIndex)> {
+        PieceType::iter()
+            .map(|piece_type| {
+                return [
+                    (piece_type, PieceColor::White),
+                    (piece_type, PieceColor::Black),
+                ];
+            })
+            .flatten()
+            .map(|(piece_type, piece_color)| {
+                let bitboard_idx = bitboard_idx(piece_type, piece_color);
+                self.piece_list[bitboard_idx]
+                    .iter()
+                    .map(move |idx| ((piece_type, piece_color), *idx))
+            })
+            .flatten()
     }
 
     pub fn all_pieces(&self) -> Bitboard {
@@ -187,6 +231,39 @@ impl Bitboards {
     /// Used with functions asked for blocking masks
     pub fn blocked_mask_for_color(&self, color: PieceColor) -> Bitboard {
         !self.limits | self.all_pieces_by_color(color)
+    }
+
+    pub fn en_prise_by_color(&self, color: PieceColor) -> Bitboard {
+        let mut board = Bitboard(0);
+        for piece_type in PieceType::iter() {
+            for idx in self.piece_list[bitboard_idx(piece_type, color)].clone() {
+                board |= match piece_type {
+                    PieceType::King => Bitboard::from(idx).king_en_prise_mask(
+                        &self.blocked_mask_for_color(color),
+                        &self.all_pieces_by_color(color.next()),
+                    ),
+                    PieceType::Queen => Bitboard::from(idx).queen_en_prise_mask(
+                        &self.blocked_mask_for_color(color),
+                        &self.all_pieces_by_color(color.next()),
+                    ),
+                    PieceType::Rook => Bitboard::from(idx).rook_en_prise_mask(
+                        &self.blocked_mask_for_color(color),
+                        &self.all_pieces_by_color(color.next()),
+                    ),
+                    PieceType::Bishop => Bitboard::from(idx).bishop_en_prise_mask(
+                        &self.blocked_mask_for_color(color),
+                        &self.all_pieces_by_color(color.next()),
+                    ),
+                    PieceType::Knight => Bitboard::from(idx).knight_en_prise_mask(
+                        &self.blocked_mask_for_color(color),
+                        &self.all_pieces_by_color(color.next()),
+                    ),
+                    PieceType::Pawn => Bitboard::from(idx)
+                        .pawn_en_prise_mask(&self.blocked_mask_for_color(color), color),
+                }
+            }
+        }
+        board
     }
 }
 
@@ -311,5 +388,29 @@ mod tests {
         let mut bitboard = Bitboard(0);
         bitboard.set(30.into(), true);
         assert_eq!(bitboard.to_bit_idx(), 30.into());
+    }
+
+    #[test]
+    fn en_prise_default() {
+        let game = Game::default();
+        let bitboard = game.boards;
+
+        let expected = Bitboards::from_str(
+            r#"
+        00000000
+        00000000
+        pppppppp
+        00000000
+        00000000
+        pppppppp
+        00000000
+        00000000
+        "#,
+        );
+        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+
+        let en_prise = bitboard.en_prise_by_color(PieceColor::White)
+            | bitboard.en_prise_by_color(PieceColor::Black);
+        assert_eq!(en_prise, expected);
     }
 }

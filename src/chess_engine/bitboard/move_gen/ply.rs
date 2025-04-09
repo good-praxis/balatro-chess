@@ -65,7 +65,7 @@ impl Ply {
 }
 
 impl Bitboard {
-    /// Returns a vector of all unblocked single-step plys
+    /// Returns a iterator of all unblocked single-step plys
     pub fn single_step_plys_in_dirs(
         &self,
         dirs: &[fn(&Self) -> Self],
@@ -73,7 +73,7 @@ impl Bitboard {
         capturable: &Self,
         capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
         by_piece: (PieceType, PieceColor),
-    ) -> BinaryHeap<Ply> {
+    ) -> impl Iterator<Item = Ply> {
         dirs.iter()
             .map(|dir| dir(self))
             .filter(|board| **board != 0 && **board & **blocked == 0)
@@ -97,10 +97,9 @@ impl Bitboard {
                     ..Default::default()
                 }
             })
-            .collect()
     }
 
-    /// Returns a vector of all unblocked multi-step plys (sliding pieces)
+    /// Returns a iterator of all unblocked multi-step plys (sliding pieces)
     pub fn multi_step_plys_in_dirs(
         &self,
         dirs: &[fn(&Self, &Self, &Self) -> Vec<Self>],
@@ -108,7 +107,7 @@ impl Bitboard {
         capturable: &Self,
         capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
         by_piece: (PieceType, PieceColor),
-    ) -> BinaryHeap<Ply> {
+    ) -> impl Iterator<Item = Ply> {
         dirs.iter()
             .map(|dir| dir(self, blocked, capturable))
             .flatten()
@@ -132,7 +131,6 @@ impl Bitboard {
                     ..Default::default()
                 }
             })
-            .collect()
     }
 }
 
@@ -215,6 +213,8 @@ impl Bitboards {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BinaryHeap;
+
     use crate::chess_engine::{
         bitboard::{
             Bitboard, Bitboards, bitboard_idx,
@@ -235,13 +235,15 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(PieceType::King, PieceColor::White)];
 
-        let mut plys = board.single_step_plys_in_dirs(
-            &KING_DIRS,
-            &boards.blocked_mask_for_color(PieceColor::White),
-            &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_piece_types_by_color(PieceColor::Black),
-            (PieceType::King, PieceColor::White),
-        );
+        let mut plys = board
+            .single_step_plys_in_dirs(
+                &KING_DIRS,
+                &boards.blocked_mask_for_color(PieceColor::White),
+                &boards.all_pieces_by_color(PieceColor::Black),
+                boards.all_piece_types_by_color(PieceColor::Black),
+                (PieceType::King, PieceColor::White),
+            )
+            .collect::<BinaryHeap<Ply>>();
 
         assert_eq!(plys.len(), 3);
         assert!(plys.pop().unwrap().capturing.is_some())
@@ -258,13 +260,15 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(PieceType::Queen, PieceColor::White)];
 
-        let mut plys = board.multi_step_plys_in_dirs(
-            &QUEEN_STEP_DIRS,
-            &boards.blocked_mask_for_color(PieceColor::White),
-            &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_piece_types_by_color(PieceColor::Black),
-            (PieceType::Queen, PieceColor::White),
-        );
+        let mut plys = board
+            .multi_step_plys_in_dirs(
+                &QUEEN_STEP_DIRS,
+                &boards.blocked_mask_for_color(PieceColor::White),
+                &boards.all_pieces_by_color(PieceColor::Black),
+                boards.all_piece_types_by_color(PieceColor::Black),
+                (PieceType::Queen, PieceColor::White),
+            )
+            .collect::<BinaryHeap<Ply>>();
 
         assert_eq!(plys.len(), 6);
         assert!(plys.pop().unwrap().capturing.is_some())

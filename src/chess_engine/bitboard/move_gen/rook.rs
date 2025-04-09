@@ -31,6 +31,16 @@ impl Bitboard {
         self.rook_move_mask(blocked, capturable)
     }
 
+    pub fn rook_plys_iter(
+        &self,
+        blocked: &Self,
+        capturable: &Self,
+        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        piece: (PieceType, PieceColor),
+    ) -> impl Iterator<Item = Ply> {
+        self.multi_step_plys_in_dirs(&ROOK_STEP_DIRS, blocked, capturable, capturable_iter, piece)
+    }
+
     pub fn rook_plys(
         &self,
         blocked: &Self,
@@ -38,7 +48,8 @@ impl Bitboard {
         capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
         piece: (PieceType, PieceColor),
     ) -> BinaryHeap<Ply> {
-        self.multi_step_plys_in_dirs(&ROOK_STEP_DIRS, blocked, capturable, capturable_iter, piece)
+        self.rook_plys_iter(blocked, capturable, capturable_iter, piece)
+            .collect()
     }
 }
 

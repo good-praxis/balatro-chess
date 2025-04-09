@@ -45,13 +45,13 @@ impl Bitboard {
         self.queen_move_mask(blocked, capturable)
     }
 
-    pub fn queen_plys(
+    pub fn queen_plys_iter(
         &self,
         blocked: &Self,
         capturable: &Self,
         capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
         piece: (PieceType, PieceColor),
-    ) -> BinaryHeap<Ply> {
+    ) -> impl Iterator<Item = Ply> {
         self.multi_step_plys_in_dirs(
             &QUEEN_STEP_DIRS,
             blocked,
@@ -59,6 +59,17 @@ impl Bitboard {
             capturable_iter,
             piece,
         )
+    }
+
+    pub fn queen_plys(
+        &self,
+        blocked: &Self,
+        capturable: &Self,
+        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        piece: (PieceType, PieceColor),
+    ) -> BinaryHeap<Ply> {
+        self.queen_plys_iter(blocked, capturable, capturable_iter, piece)
+            .collect()
     }
 }
 

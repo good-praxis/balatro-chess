@@ -92,7 +92,7 @@ impl Bitboard {
         mask
     }
 
-    pub fn pawn_plys(
+    pub fn pawn_plys_iter(
         &self,
         blocked: &Self,
         capturable: &Self,
@@ -100,9 +100,9 @@ impl Bitboard {
         color: PieceColor,
         unmoved_pieces: &Self,
         en_passant: &Self,
-    ) -> BinaryHeap<Ply> {
+    ) -> impl Iterator<Item = Ply> {
         let dir = pawn_dir(color);
-        let mut moves = BinaryHeap::new();
+        let mut moves = vec![];
 
         let bit_idx = self.to_bit_idx();
 
@@ -170,7 +170,27 @@ impl Bitboard {
             }
         }
 
-        moves
+        moves.into_iter()
+    }
+
+    pub fn pawn_plys(
+        &self,
+        blocked: &Self,
+        capturable: &Self,
+        capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        color: PieceColor,
+        unmoved_pieces: &Self,
+        en_passant: &Self,
+    ) -> BinaryHeap<Ply> {
+        self.pawn_plys_iter(
+            blocked,
+            capturable,
+            capturing_iter,
+            color,
+            unmoved_pieces,
+            en_passant,
+        )
+        .collect()
     }
 }
 

@@ -1,6 +1,7 @@
+use bevy::prelude::Deref;
 use rand::prelude::*;
 use rand_chacha::ChaCha8Rng;
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::BitXorAssign};
 use strum::IntoEnumIterator;
 
 use super::{
@@ -14,11 +15,25 @@ enum ZobristKey {
     Piece(PieceType, PieceColor, u32),
 }
 
-#[derive(Debug)]
-pub struct Zobrist {
-    table: HashMap<ZobristKey, u32>,
+#[derive(Debug, Deref, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ZobristHash(u32);
+
+impl From<u32> for ZobristHash {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
 }
 
+impl BitXorAssign for ZobristHash {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 = **self ^ *rhs;
+    }
+}
+
+#[derive(Debug)]
+pub struct Zobrist {
+    table: HashMap<ZobristKey, ZobristHash>,
+}
 impl Zobrist {
     pub fn new(board_size: u32) -> Self {
         // 24337 = chess on a phone keyboard
@@ -28,7 +43,10 @@ impl Zobrist {
         for piece_type in PieceType::iter() {
             for color in PieceColor::iter() {
                 for i in 0..board_size {
-                    table.insert(ZobristKey::Piece(piece_type, color, i), rng.random());
+                    table.insert(
+                        ZobristKey::Piece(piece_type, color, i),
+                        rng.random::<u32>().into(),
+                    );
                 }
             }
         }
@@ -36,8 +54,8 @@ impl Zobrist {
         Self { table }
     }
 
-    pub fn gen_initial_hash_mailbox(&self, board: &Vec<Option<Piece>>) -> u32 {
-        let mut hash = 0;
+    pub fn gen_initial_hash_mailbox(&self, board: &Vec<Option<Piece>>) -> ZobristHash {
+        let mut hash = 0.into();
         for (i, tile) in board.iter().enumerate() {
             if let Some(piece) = tile {
                 hash ^= self.table[&ZobristKey::Piece(piece.piece_type, piece.color, i as u32)];
@@ -50,8 +68,8 @@ impl Zobrist {
     pub fn gen_initial_hash_bitboard(
         &self,
         pieces_iter: impl Iterator<Item = ((PieceType, PieceColor), BitIndex)>,
-    ) -> u32 {
-        let mut hash = 0;
+    ) -> ZobristHash {
+        let mut hash = 0.into();
         for ((piece_type, piece_color), bitindex) in pieces_iter {
             hash ^= self.table[&ZobristKey::Piece(piece_type, piece_color, *bitindex)];
         }
@@ -60,7 +78,11 @@ impl Zobrist {
     }
 
     /// Function works in both directions due to the xoring
-    pub fn update_hash_bitboard(&self, mut hash: u32, ply: &super::bitboard::Ply) -> u32 {
+    pub fn update_hash_bitboard(
+        &self,
+        mut hash: ZobristHash,
+        ply: &super::bitboard::Ply,
+    ) -> ZobristHash {
         // remove previous position for moving piece
         hash ^= self.table[&ZobristKey::Piece(ply.moving_piece.0, ply.moving_piece.1, *ply.from)];
         // add new position for moving piece
@@ -75,7 +97,12 @@ impl Zobrist {
     }
 
     /// Function works in both directions due to the xoring
-    pub fn update_hash_mailbox(&self, board: &Game, mut hash: u32, ply: super::moves::Ply) -> u32 {
+    pub fn update_hash_mailbox(
+        &self,
+        board: &Game,
+        mut hash: ZobristHash,
+        ply: super::moves::Ply,
+    ) -> ZobristHash {
         // remove previous position for moving piece
         hash ^= self.table[&ZobristKey::Piece(
             ply.by.piece_type,
@@ -114,7 +141,7 @@ mod tests {
     fn hash_on_default() {
         let board = Game::default();
 
-        assert_ne!(board.zobrist_hash, 0);
+        assert_ne!(board.zobrist_hash, 0.into());
     }
 
     #[test]

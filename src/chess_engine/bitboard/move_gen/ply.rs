@@ -171,6 +171,19 @@ impl Bitboards {
         self.zobrist_hash = self
             .zobrist_table
             .update_hash_bitboard(self.zobrist_hash, ply);
+
+        // update visited positions
+        let count = *self
+            .visited_positions
+            .lock()
+            .unwrap()
+            .entry(self.zobrist_hash)
+            .or_insert(0)
+            + 1;
+        self.visited_positions
+            .lock()
+            .unwrap()
+            .insert(self.zobrist_hash, count);
     }
 
     pub fn unmake_ply(&mut self, ply: &Ply, previous_ply: Option<&Ply>) {
@@ -203,6 +216,20 @@ impl Bitboards {
         } else {
             self.en_passant = 0.into();
         }
+
+        // update visited positions
+        let count = *self
+            .visited_positions
+            .lock()
+            .unwrap()
+            .entry(self.zobrist_hash)
+            .or_insert(0)
+            - 1;
+
+        self.visited_positions
+            .lock()
+            .unwrap()
+            .insert(self.zobrist_hash, count);
 
         // update hash
         self.zobrist_hash = self
@@ -526,5 +553,58 @@ mod tests {
         bitboard.make_ply(&second_ply);
         bitboard.unmake_ply(&second_ply, Some(&first_ply));
         assert_eq!(bitboard.en_passant, expected);
+    }
+
+    #[test]
+    fn make_ply_visited_count() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        0
+        p
+        "#,
+        );
+
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 16.into(),
+            to: 0.into(),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        assert_eq!(
+            bitboard
+                .visited_positions
+                .lock()
+                .unwrap()
+                .get(&bitboard.zobrist_hash),
+            Some(&1)
+        );
+    }
+
+    #[test]
+    fn unmake_ply_visited_count() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        0
+        p
+        "#,
+        );
+
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 16.into(),
+            to: 0.into(),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        let hash = bitboard.zobrist_hash;
+        bitboard.unmake_ply(&ply, None);
+
+        assert_eq!(
+            bitboard.visited_positions.lock().unwrap().get(&hash),
+            Some(&0)
+        );
     }
 }

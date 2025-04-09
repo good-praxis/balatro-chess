@@ -1,10 +1,14 @@
 use bevy::prelude::*;
-use std::{fmt::Display, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    sync::{Arc, Mutex},
+};
 use strum::IntoEnumIterator;
 
 use super::{
     pieces::{PieceColor, PieceType},
-    zobrist::Zobrist,
+    zobrist::{Zobrist, ZobristHash},
 };
 
 pub mod bitwise_traits;
@@ -100,7 +104,10 @@ pub struct Bitboards {
 
     // Zobrist hashing
     pub zobrist_table: Arc<Zobrist>,
-    pub zobrist_hash: u32,
+    pub zobrist_hash: ZobristHash,
+
+    // thricefold repetition protection
+    pub visited_positions: Arc<Mutex<HashMap<ZobristHash, isize>>>,
 }
 
 impl PartialEq for Bitboards {
@@ -177,13 +184,19 @@ impl Bitboards {
             unmoved_pieces,
             en_passant: Bitboard(0),
             zobrist_table,
-            zobrist_hash: 0,
+            zobrist_hash: 0.into(),
+            visited_positions: Arc::new(Mutex::new(HashMap::new())),
         };
 
         let zobrist_hash = new_bitboards
             .zobrist_table
             .gen_initial_hash_bitboard(new_bitboards.key_value_pieces_iter());
         new_bitboards.zobrist_hash = zobrist_hash;
+        new_bitboards
+            .visited_positions
+            .lock()
+            .unwrap()
+            .insert(zobrist_hash, 1);
         new_bitboards
     }
 

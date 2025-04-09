@@ -1,7 +1,7 @@
 use super::bitboard::Bitboards;
 use super::moves::{MoveVec, Ply, Pos};
 use super::pieces::{Piece, PieceColor, PieceType};
-use super::zobrist::Zobrist;
+use super::zobrist::{Zobrist, ZobristHash};
 use bevy::prelude::*;
 use std::collections::BinaryHeap;
 use std::sync::Arc;
@@ -19,9 +19,9 @@ pub struct Game {
     pub moves: Vec<Ply>,
     pub piece_map: HashMap<(PieceColor, PieceType), Vec<Pos>>,
     pub next_move_by: PieceColor,
-    pub repeated_board_count: HashMap<u32, isize>,
+    pub repeated_board_count: HashMap<ZobristHash, isize>,
     pub zobrist_table: Arc<Zobrist>,
-    pub zobrist_hash: u32,
+    pub zobrist_hash: ZobristHash,
 }
 impl Default for Game {
     fn default() -> Self {

@@ -1,45 +1,10 @@
 use super::{
-    bitboard::{Bitboard, Ply},
     game::Game,
     moves::{LegacyPly, MoveVec, Pos},
 };
 use bevy::prelude::*;
-use std::{cmp::Ordering, collections::BinaryHeap};
+use std::cmp::Ordering;
 use strum_macros::EnumIter;
-
-pub trait Piece {
-    /// Associated PieceType
-    fn identity() -> PieceType;
-
-    /// Cumulative bitmask of all pseudolegal moves
-    fn move_mask(piece_board: &Bitboard, blocked: &Bitboard, capturable: &Bitboard) -> Bitboard;
-
-    /// Pseudolegal moves
-    fn move_arr(piece_board: &Bitboard, blocked: &Bitboard, capturable: &Bitboard)
-    -> Vec<Bitboard>;
-
-    /// Mask of threatened positions
-    fn en_prise_mask(piece_board: &Bitboard, blocked: &Bitboard, capturable: &Bitboard)
-    -> Bitboard;
-
-    /// Pseudolegal iter of all plys by piece
-    fn plys_iter(
-        piece_board: &Bitboard,
-        blocked: &Bitboard,
-        capturable: &Bitboard,
-        capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
-        color: PieceColor,
-    ) -> impl Iterator<Item = Ply>;
-
-    /// Pseudolegal priority queue of plys
-    fn plys(
-        piece_board: &Bitboard,
-        blocked: &Bitboard,
-        capturable: &Bitboard,
-        capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
-        color: PieceColor,
-    ) -> BinaryHeap<Ply>;
-}
 
 /// To be removed
 #[derive(Component, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]

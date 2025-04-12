@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use move_gen::ply::legality_filter;
 use std::{
-    collections::{BinaryHeap, HashMap},
+    collections::HashMap,
     fmt::Display,
     sync::{Arc, Mutex},
 };

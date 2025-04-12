@@ -1,5 +1,3 @@
-use rand::seq::IndexedRandom;
-
 use crate::chess_engine::{
     bitboard::Ply,
     pieces::{PieceColor, PieceType},

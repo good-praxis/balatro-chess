@@ -1,20 +1,56 @@
 use super::{
+    bitboard::{Bitboard, Ply},
     game::Game,
-    moves::{MoveVec, Ply, Pos},
+    moves::{LegacyPly, MoveVec, Pos},
 };
 use bevy::prelude::*;
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::BinaryHeap};
 use strum_macros::EnumIter;
 
+pub trait Piece {
+    /// Associated PieceType
+    fn identity() -> PieceType;
+
+    /// Cumulative bitmask of all pseudolegal moves
+    fn move_mask(piece_board: &Bitboard, blocked: &Bitboard, capturable: &Bitboard) -> Bitboard;
+
+    /// Pseudolegal moves
+    fn move_arr(piece_board: &Bitboard, blocked: &Bitboard, capturable: &Bitboard)
+    -> Vec<Bitboard>;
+
+    /// Mask of threatened positions
+    fn en_prise_mask(piece_board: &Bitboard, blocked: &Bitboard, capturable: &Bitboard)
+    -> Bitboard;
+
+    /// Pseudolegal iter of all plys by piece
+    fn plys_iter(
+        piece_board: &Bitboard,
+        blocked: &Bitboard,
+        capturable: &Bitboard,
+        capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        color: PieceColor,
+    ) -> impl Iterator<Item = Ply>;
+
+    /// Pseudolegal priority queue of plys
+    fn plys(
+        piece_board: &Bitboard,
+        blocked: &Bitboard,
+        capturable: &Bitboard,
+        capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        color: PieceColor,
+    ) -> BinaryHeap<Ply>;
+}
+
+/// To be removed
 #[derive(Component, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct Piece {
+pub struct LegacyPiece {
     pub piece_type: PieceType,
     pub color: PieceColor,
     pub pos: Pos,
     pub has_moved: bool,
 }
 
-impl Piece {
+impl LegacyPiece {
     pub fn new(piece_type: PieceType, color: PieceColor, pos: Pos) -> Self {
         Self {
             piece_type,
@@ -50,7 +86,7 @@ impl Piece {
     }
 
     /// The generated moves do not perform any checking checks, however vector attacks do stop at collisions
-    pub fn generate_pseudolegal_moves(&self, board: &Game) -> Vec<Ply> {
+    pub fn generate_pseudolegal_moves(&self, board: &Game) -> Vec<LegacyPly> {
         match self.piece_type {
             PieceType::King => self.king_move_generation(board),
             PieceType::Queen => self.queen_move_generation(board),
@@ -61,7 +97,7 @@ impl Piece {
         }
     }
 
-    fn king_move_generation(&self, board: &Game) -> Vec<Ply> {
+    fn king_move_generation(&self, board: &Game) -> Vec<LegacyPly> {
         let movement_vectors = [
             MoveVec { x: 1, y: 0 },
             MoveVec { x: 1, y: 1 },
@@ -76,7 +112,7 @@ impl Piece {
         self.step_moves(board, &movement_vectors)
     }
 
-    fn knight_move_generation(&self, board: &Game) -> Vec<Ply> {
+    fn knight_move_generation(&self, board: &Game) -> Vec<LegacyPly> {
         let movement_vectors = [
             MoveVec { x: 1, y: 2 },
             MoveVec { x: 2, y: 1 },
@@ -91,8 +127,8 @@ impl Piece {
         self.step_moves(board, &movement_vectors)
     }
 
-    fn step_moves(&self, board: &Game, movement_vectors: &[MoveVec]) -> Vec<Ply> {
-        let mut moves: Vec<Ply> = vec![];
+    fn step_moves(&self, board: &Game, movement_vectors: &[MoveVec]) -> Vec<LegacyPly> {
+        let mut moves: Vec<LegacyPly> = vec![];
         for vec in movement_vectors {
             // `valid_dest` is definitely in range of the board
             if let Some(valid_dest) = board.apply_vec_to_pos(self.pos, vec) {
@@ -111,8 +147,8 @@ impl Piece {
         moves
     }
 
-    fn raycasted_moves(&self, board: &Game, movement_vectors: &[MoveVec]) -> Vec<Ply> {
-        let mut moves: Vec<Ply> = vec![];
+    fn raycasted_moves(&self, board: &Game, movement_vectors: &[MoveVec]) -> Vec<LegacyPly> {
+        let mut moves: Vec<LegacyPly> = vec![];
         for vec in movement_vectors {
             self.vector_walk(board, &mut moves, vec);
         }
@@ -120,7 +156,7 @@ impl Piece {
         moves
     }
 
-    fn rook_move_generation(&self, board: &Game) -> Vec<Ply> {
+    fn rook_move_generation(&self, board: &Game) -> Vec<LegacyPly> {
         let movement_vectors = [
             MoveVec { x: 1, y: 0 },
             MoveVec { x: 0, y: 1 },
@@ -131,7 +167,7 @@ impl Piece {
         self.raycasted_moves(board, &movement_vectors)
     }
 
-    fn bishop_move_generation(&self, board: &Game) -> Vec<Ply> {
+    fn bishop_move_generation(&self, board: &Game) -> Vec<LegacyPly> {
         let movement_vectors = [
             MoveVec { x: 1, y: 1 },
             MoveVec { x: -1, y: 1 },
@@ -141,7 +177,7 @@ impl Piece {
         self.raycasted_moves(board, &movement_vectors)
     }
 
-    fn queen_move_generation(&self, board: &Game) -> Vec<Ply> {
+    fn queen_move_generation(&self, board: &Game) -> Vec<LegacyPly> {
         let movement_vectors = [
             MoveVec { x: 1, y: 0 },
             MoveVec { x: 1, y: 1 },
@@ -156,8 +192,8 @@ impl Piece {
         self.raycasted_moves(board, &movement_vectors)
     }
 
-    fn pawn_move_generation(&self, board: &Game) -> Vec<Ply> {
-        let mut moves: Vec<Ply> = vec![];
+    fn pawn_move_generation(&self, board: &Game) -> Vec<LegacyPly> {
+        let mut moves: Vec<LegacyPly> = vec![];
 
         let direction = if self.color == PieceColor::White {
             -1
@@ -239,7 +275,7 @@ impl Piece {
     }
     /// walk into the direction of a MoveVec until we reach and `Tile::Inactive`, a piece of our color,
     /// or we pass a piece of the opponent's color.
-    fn vector_walk(&self, board: &Game, moves: &mut Vec<Ply>, vec: &MoveVec) {
+    fn vector_walk(&self, board: &Game, moves: &mut Vec<LegacyPly>, vec: &MoveVec) {
         let mut finished = false;
         let mut pos = self.pos;
         while !finished {
@@ -263,16 +299,16 @@ impl Piece {
         }
     }
 
-    fn move_to_pos(&self, pos: Pos) -> Ply {
-        Ply {
+    fn move_to_pos(&self, pos: Pos) -> LegacyPly {
+        LegacyPly {
             move_to: self.pos.move_to(&pos),
             by: *self,
             ..Default::default()
         }
     }
 
-    fn move_to_pos_en_passant(&self, pos: Pos) -> Ply {
-        Ply {
+    fn move_to_pos_en_passant(&self, pos: Pos) -> LegacyPly {
+        LegacyPly {
             move_to: self.pos.move_to(&pos),
             by: *self,
             en_passant_flag: true,
@@ -280,8 +316,8 @@ impl Piece {
         }
     }
 
-    fn move_capture(&self, piece: &Piece) -> Ply {
-        Ply {
+    fn move_capture(&self, piece: &LegacyPiece) -> LegacyPly {
+        LegacyPly {
             move_to: self.pos.move_to(&piece.pos),
             by: *self,
             capturing: Some(*piece),
@@ -289,8 +325,8 @@ impl Piece {
         }
     }
 
-    fn move_to_while_capturing(&self, pos: Pos, piece: &Piece) -> Ply {
-        Ply {
+    fn move_to_while_capturing(&self, pos: Pos, piece: &LegacyPiece) -> LegacyPly {
+        LegacyPly {
             move_to: self.pos.move_to(&pos),
             by: *self,
             capturing: Some(*piece),
@@ -533,12 +569,12 @@ mod tests {
             "#,
             2,
         );
-        game.moves.push(super::Ply {
+        game.moves.push(super::LegacyPly {
             move_to: MoveTo {
                 from: Pos::new(0, 0),
                 to: Pos::new(2, 0),
             },
-            by: Piece {
+            by: LegacyPiece {
                 piece_type: PieceType::Pawn,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),

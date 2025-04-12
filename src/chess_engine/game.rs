@@ -1,6 +1,6 @@
 use super::bitboard::Bitboards;
-use super::moves::{MoveVec, Ply, Pos};
-use super::pieces::{Piece, PieceColor, PieceType};
+use super::moves::{LegacyPly, MoveVec, Pos};
+use super::pieces::{LegacyPiece, PieceColor, PieceType};
 use super::zobrist::{Zobrist, ZobristHash};
 use bevy::prelude::*;
 use std::collections::BinaryHeap;
@@ -13,10 +13,10 @@ use std::{
 
 #[derive(Resource, Debug, Clone)]
 pub struct Game {
-    pub board: Vec<Option<Piece>>,
+    pub board: Vec<Option<LegacyPiece>>,
     pub boards: Bitboards,
     pub row_length: usize,
-    pub moves: Vec<Ply>,
+    pub moves: Vec<LegacyPly>,
     pub piece_map: HashMap<(PieceColor, PieceType), Vec<Pos>>,
     pub next_move_by: PieceColor,
     pub repeated_board_count: HashMap<ZobristHash, isize>,
@@ -58,7 +58,7 @@ impl Display for Game {
     }
 }
 impl Index<Pos> for Game {
-    type Output = Option<Piece>;
+    type Output = Option<LegacyPiece>;
 
     fn index(&self, pos: Pos) -> &Self::Output {
         &self.board[self.pos_to_idx(pos)]
@@ -114,7 +114,7 @@ impl Game {
                 .or_insert(vec![])
                 .push(pos);
 
-            board.push(Some(Piece::new(piece_type, color, pos)));
+            board.push(Some(LegacyPiece::new(piece_type, color, pos)));
 
             idx += 1;
         }
@@ -139,7 +139,7 @@ impl Game {
     }
 
     /// Returns the legal moves for a piece at a given position
-    fn get_moves_for_pos(&self, pos: Pos) -> Option<Vec<Ply>> {
+    fn get_moves_for_pos(&self, pos: Pos) -> Option<Vec<LegacyPly>> {
         let piece = self[pos];
 
         if let Some(piece) = piece {
@@ -185,7 +185,7 @@ impl Game {
 
     /// Checks if applying a move would leave the moving party in check
     /// If needed, further pre-checks could be run to limit the amounts of moves and pieces evaluated
-    fn legality_check(&self, moves: Vec<Ply>) -> Vec<Ply> {
+    fn legality_check(&self, moves: Vec<LegacyPly>) -> Vec<LegacyPly> {
         // if there are no moves, return early
         if moves.is_empty() {
             return moves;
@@ -254,7 +254,7 @@ impl Game {
         legal_moves
     }
 
-    pub fn apply_ply(&mut self, ply: Ply) {
+    pub fn apply_ply(&mut self, ply: LegacyPly) {
         // push to simulation list
         self.moves.push(ply);
 
@@ -461,7 +461,7 @@ impl Game {
     }
 
     /// applies MVV-LVA on the unsorted move list
-    pub fn sorted_move_list(&self) -> BinaryHeap<Ply> {
+    pub fn sorted_move_list(&self) -> BinaryHeap<LegacyPly> {
         let mut moves = BinaryHeap::new();
         for piece in self.board.clone().iter().flatten() {
             if piece.color == self.next_move_by {
@@ -473,7 +473,7 @@ impl Game {
         moves
     }
 
-    pub fn capturing_move_list(&self) -> Vec<Ply> {
+    pub fn capturing_move_list(&self) -> Vec<LegacyPly> {
         let mut moves = vec![];
         for piece in self.board.clone().iter().flatten() {
             if piece.color == self.next_move_by {
@@ -489,7 +489,7 @@ impl Game {
         moves
     }
 
-    pub fn search_next_move(&self, depth: i8) -> (i32, Option<Ply>) {
+    pub fn search_next_move(&self, depth: i8) -> (i32, Option<LegacyPly>) {
         self.alpha_beta(i32::MIN, i32::MAX, depth)
     }
 
@@ -527,7 +527,7 @@ impl Game {
         best_score
     }
 
-    fn alpha_beta(&self, mut alpha: i32, beta: i32, depth: i8) -> (i32, Option<Ply>) {
+    fn alpha_beta(&self, mut alpha: i32, beta: i32, depth: i8) -> (i32, Option<LegacyPly>) {
         if depth == 0 {
             return (
                 self.quiescence_search(alpha, beta),
@@ -621,18 +621,18 @@ mod tests {
         );
         let dest = Pos::new(0, 0);
         let start = Pos::new(1, 1);
-        let ply = super::Ply {
+        let ply = super::LegacyPly {
             move_to: MoveTo {
                 from: start,
                 to: dest,
             },
-            by: Piece {
+            by: LegacyPiece {
                 piece_type: PieceType::Pawn,
                 color: PieceColor::White,
                 pos: start,
                 ..Default::default()
             },
-            capturing: Some(Piece {
+            capturing: Some(LegacyPiece {
                 piece_type: PieceType::Pawn,
                 color: PieceColor::Black,
                 pos: dest,
@@ -647,7 +647,7 @@ mod tests {
         assert_eq!(game.moves.len(), 1);
         assert_eq!(
             game.board[0],
-            Some(Piece {
+            Some(LegacyPiece {
                 piece_type: PieceType::Pawn,
                 color: PieceColor::White,
                 pos: dest,
@@ -667,18 +667,18 @@ mod tests {
             2,
         );
         let frozen_board = game.board.clone();
-        let ply = super::Ply {
+        let ply = super::LegacyPly {
             move_to: MoveTo {
                 from: Pos::new(1, 1),
                 to: Pos::new(0, 0),
             },
-            by: Piece {
+            by: LegacyPiece {
                 piece_type: PieceType::Pawn,
                 color: PieceColor::White,
                 pos: Pos::new(1, 1),
                 ..Default::default()
             },
-            capturing: Some(Piece {
+            capturing: Some(LegacyPiece {
                 piece_type: PieceType::Pawn,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
@@ -783,18 +783,18 @@ mod tests {
         );
 
         let next_move = game.search_next_move(3);
-        let expected_move = super::Ply {
+        let expected_move = super::LegacyPly {
             move_to: MoveTo {
                 from: Pos::new(1, 1),
                 to: Pos::new(0, 0),
             },
-            by: Piece {
+            by: LegacyPiece {
                 piece_type: PieceType::Pawn,
                 color: PieceColor::White,
                 pos: Pos::new(1, 1),
                 ..Default::default()
             },
-            capturing: Some(Piece {
+            capturing: Some(LegacyPiece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
@@ -822,18 +822,18 @@ mod tests {
         game.next_move_by = PieceColor::Black;
 
         let next_move = game.search_next_move(1);
-        let expected_move = super::Ply {
+        let expected_move = super::LegacyPly {
             move_to: MoveTo {
                 from: Pos::new(0, 0),
                 to: Pos::new(0, 4),
             },
-            by: Piece {
+            by: LegacyPiece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),
                 ..Default::default()
             },
-            capturing: Some(Piece {
+            capturing: Some(LegacyPiece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::White,
                 pos: Pos::new(0, 4),
@@ -860,18 +860,18 @@ mod tests {
         );
 
         let next_move = game.search_next_move(1);
-        let avoided_capture = super::Ply {
+        let avoided_capture = super::LegacyPly {
             move_to: MoveTo {
                 from: Pos::new(2, 0),
                 to: Pos::new(0, 0),
             },
-            by: Piece {
+            by: LegacyPiece {
                 piece_type: PieceType::Queen,
                 color: PieceColor::White,
                 pos: Pos::new(2, 0),
                 ..Default::default()
             },
-            capturing: Some(Piece {
+            capturing: Some(LegacyPiece {
                 piece_type: PieceType::Rook,
                 color: PieceColor::Black,
                 pos: Pos::new(0, 0),

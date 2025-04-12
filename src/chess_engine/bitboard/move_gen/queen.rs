@@ -1,5 +1,3 @@
-use std::collections::BinaryHeap;
-
 use crate::chess_engine::{
     bitboard::Bitboard,
     pieces::{PieceColor, PieceType},
@@ -61,13 +59,13 @@ impl Bitboard {
         )
     }
 
-    pub fn queen_plys(
+    pub fn queen_plys<T: Default + FromIterator<Ply>>(
         &self,
         blocked: &Self,
         capturable: &Self,
         capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
         piece: (PieceType, PieceColor),
-    ) -> BinaryHeap<Ply> {
+    ) -> T {
         self.queen_plys_iter(blocked, capturable, capturable_iter, piece)
             .collect()
     }
@@ -75,8 +73,10 @@ impl Bitboard {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BinaryHeap;
+
     use crate::chess_engine::{
-        bitboard::{Bitboards, bitboard_idx},
+        bitboard::{Bitboards, Ply, bitboard_idx},
         pieces::{PieceColor, PieceType},
     };
 
@@ -173,7 +173,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(PieceType::Queen, PieceColor::White)];
 
-        let mut plys = board.queen_plys(
+        let mut plys: BinaryHeap<Ply> = board.queen_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
             boards.all_piece_types_by_color(PieceColor::Black),

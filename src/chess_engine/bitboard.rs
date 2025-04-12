@@ -1,6 +1,7 @@
 use bevy::prelude::*;
+use move_gen::ply::legality_filter;
 use std::{
-    collections::HashMap,
+    collections::{BinaryHeap, HashMap},
     fmt::Display,
     sync::{Arc, Mutex},
 };
@@ -12,7 +13,7 @@ use super::{
 };
 
 pub mod bitwise_traits;
-mod move_gen;
+pub mod move_gen;
 
 mod search;
 
@@ -280,6 +281,65 @@ impl Bitboards {
         }
         board
     }
+
+    /// all legal plys by color
+    pub fn all_legal_plys_by_color<T: Default + Extend<Ply>>(&self, color: PieceColor) -> T {
+        PieceType::iter().fold(Default::default(), |mut coll, piece_type| {
+            for piece in self.piece_list[bitboard_idx(piece_type, color)].iter() {
+                let board = Bitboard::from(*piece);
+                let blocked = &self.blocked_mask_for_color(color);
+                let capturable = &self.all_pieces_by_color(color.next());
+                let capturable_iter = self.all_piece_types_by_color(color.next());
+                let piece = (piece_type, color);
+                match piece_type {
+                    PieceType::King => {
+                        coll.extend(legality_filter(
+                            board.king_plys_iter(blocked, capturable, capturable_iter, piece),
+                            self,
+                        ));
+                    }
+                    PieceType::Queen => {
+                        coll.extend(legality_filter(
+                            board.queen_plys_iter(blocked, capturable, capturable_iter, piece),
+                            self,
+                        ));
+                    }
+                    PieceType::Rook => {
+                        coll.extend(legality_filter(
+                            board.rook_plys_iter(blocked, capturable, capturable_iter, piece),
+                            self,
+                        ));
+                    }
+
+                    PieceType::Bishop => {
+                        coll.extend(legality_filter(
+                            board.bishop_plys_iter(blocked, capturable, capturable_iter, piece),
+                            self,
+                        ));
+                    }
+                    PieceType::Knight => {
+                        coll.extend(legality_filter(
+                            board.knight_plys_iter(blocked, capturable, capturable_iter, piece),
+                            self,
+                        ));
+                    }
+
+                    PieceType::Pawn => coll.extend(legality_filter(
+                        board.pawn_plys_iter(
+                            blocked,
+                            capturable,
+                            capturable_iter,
+                            color,
+                            &self.unmoved_pieces,
+                            &self.en_passant,
+                        ),
+                        self,
+                    )),
+                };
+            }
+            coll
+        })
+    }
 }
 
 /// Bitboard index of a certain PieceType and PieceColor combo
@@ -427,5 +487,30 @@ mod tests {
         let en_prise = bitboard.en_prise_by_color(PieceColor::White)
             | bitboard.en_prise_by_color(PieceColor::Black);
         assert_eq!(en_prise, expected);
+    }
+
+    #[test]
+    fn all_moves_by_sites_default() {
+        let game = Game::default();
+        let boards = game.boards;
+        let white_moves: Vec<Ply> = boards.all_legal_plys_by_color(PieceColor::White);
+        assert_eq!(white_moves.len(), 20);
+        let black_moves: Vec<Ply> = boards.all_legal_plys_by_color(PieceColor::Black);
+        assert_eq!(black_moves.len(), 20);
+    }
+
+    #[test]
+    fn all_moves_by_sites_complex() {
+        let boards = Bitboards::from_str(
+            r#"
+        00000
+        00k00
+        00rB0
+        p000b
+        00000
+        "#,
+        );
+        let white_moves: Vec<Ply> = boards.all_legal_plys_by_color(PieceColor::White);
+        assert_eq!(white_moves.len(), 8);
     }
 }

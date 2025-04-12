@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::BinaryHeap};
+use std::cmp::Ordering;
 
 use crate::chess_engine::{
     bitboard::{BitIndex, Bitboard, Bitboards, bitboard_idx},
@@ -256,6 +256,19 @@ impl Bitboards {
 
         *king_mask & *opponent_en_prise == 0
     }
+}
+
+pub fn legality_filter(
+    iter: impl Iterator<Item = Ply>,
+    boards: &Bitboards,
+) -> impl Iterator<Item = Ply> {
+    let mut sim_board = boards.clone();
+    iter.filter(move |ply| {
+        sim_board.make_ply(ply);
+        let res = sim_board.legality_check(ply.moving_piece.1);
+        sim_board.unmake_ply(ply, None);
+        res
+    })
 }
 
 #[cfg(test)]

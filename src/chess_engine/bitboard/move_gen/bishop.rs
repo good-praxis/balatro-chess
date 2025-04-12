@@ -1,5 +1,3 @@
-use std::collections::BinaryHeap;
-
 use crate::chess_engine::{
     bitboard::Bitboard,
     pieces::{PieceColor, PieceType},
@@ -47,13 +45,13 @@ impl Bitboard {
         )
     }
 
-    pub fn bishop_plys(
+    pub fn bishop_plys<T: Default + FromIterator<Ply>>(
         &self,
         blocked: &Self,
         capturable: &Self,
         capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
         piece: (PieceType, PieceColor),
-    ) -> BinaryHeap<Ply> {
+    ) -> T {
         self.bishop_plys_iter(blocked, capturable, capturable_iter, piece)
             .collect()
     }
@@ -61,8 +59,10 @@ impl Bitboard {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BinaryHeap;
+
     use crate::chess_engine::{
-        bitboard::{Bitboards, bitboard_idx},
+        bitboard::{Bitboards, Ply, bitboard_idx},
         pieces::{PieceColor, PieceType},
     };
 
@@ -159,7 +159,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
 
-        let mut plys = board.bishop_plys(
+        let mut plys: BinaryHeap<Ply> = board.bishop_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
             boards.all_piece_types_by_color(PieceColor::Black),

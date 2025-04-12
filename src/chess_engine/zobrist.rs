@@ -7,7 +7,7 @@ use strum::IntoEnumIterator;
 use super::{
     bitboard::BitIndex,
     game::Game,
-    pieces::{Piece, PieceColor, PieceType},
+    pieces::{LegacyPiece, PieceColor, PieceType},
 };
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -54,7 +54,7 @@ impl Zobrist {
         Self { table }
     }
 
-    pub fn gen_initial_hash_mailbox(&self, board: &Vec<Option<Piece>>) -> ZobristHash {
+    pub fn gen_initial_hash_mailbox(&self, board: &Vec<Option<LegacyPiece>>) -> ZobristHash {
         let mut hash = 0.into();
         for (i, tile) in board.iter().enumerate() {
             if let Some(piece) = tile {
@@ -101,7 +101,7 @@ impl Zobrist {
         &self,
         board: &Game,
         mut hash: ZobristHash,
-        ply: super::moves::Ply,
+        ply: super::moves::LegacyPly,
     ) -> ZobristHash {
         // remove previous position for moving piece
         hash ^= self.table[&ZobristKey::Piece(
@@ -155,12 +155,12 @@ mod tests {
     #[test]
     fn hash_updates_mailbox() {
         let mut board = Game::default();
-        let ply = crate::chess_engine::moves::Ply {
+        let ply = crate::chess_engine::moves::LegacyPly {
             move_to: MoveTo {
                 from: Pos::new(7, 1),
                 to: Pos::new(5, 0),
             },
-            by: Piece {
+            by: LegacyPiece {
                 piece_type: PieceType::Knight,
                 color: PieceColor::White,
                 pos: Pos::new(7, 1),
@@ -195,12 +195,12 @@ mod tests {
     #[test]
     fn hash_rewinds_mailbox() {
         let mut board = Game::default();
-        let ply = crate::chess_engine::moves::Ply {
+        let ply = crate::chess_engine::moves::LegacyPly {
             move_to: MoveTo {
                 from: Pos::new(7, 1),
                 to: Pos::new(5, 0),
             },
-            by: Piece {
+            by: LegacyPiece {
                 piece_type: PieceType::Knight,
                 color: PieceColor::White,
                 pos: Pos::new(7, 1),

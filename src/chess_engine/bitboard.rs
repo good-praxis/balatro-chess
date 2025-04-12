@@ -203,6 +203,24 @@ impl Bitboards {
         new_bitboards
     }
 
+    pub fn to_mailbox(&self) -> Vec<Option<(PieceType, PieceColor)>> {
+        let tile_count = self.limits.count_ones() as usize;
+        let mut mailbox = vec![None; tile_count];
+        let row_length = self.limits.trailing_ones();
+
+        for piece_type in PieceType::iter() {
+            for color in PieceColor::iter() {
+                let bitboard_idx = bitboard_idx(piece_type, color);
+                for pos in self.piece_list[bitboard_idx].iter() {
+                    let mailbox_idx = (**pos % 16 + (row_length * (**pos / 16))) as usize;
+                    mailbox[mailbox_idx] = Some((piece_type, color));
+                }
+            }
+        }
+
+        mailbox
+    }
+
     pub fn key_value_pieces_iter(
         &self,
     ) -> impl Iterator<Item = ((PieceType, PieceColor), BitIndex)> {
@@ -512,5 +530,33 @@ mod tests {
         );
         let white_moves: Vec<Ply> = boards.all_legal_plys_by_color(PieceColor::White);
         assert_eq!(white_moves.len(), 8);
+    }
+
+    #[test]
+    fn to_mailbox() {
+        let boards = Bitboards::from_str(
+            r#"
+        p00
+        BKk
+        QRr
+
+        "#,
+        );
+        let mailbox = boards.to_mailbox();
+        assert_eq!(mailbox.len(), 9);
+        assert_eq!(
+            mailbox,
+            vec![
+                Some((PieceType::Pawn, PieceColor::White)),
+                None,
+                None,
+                Some((PieceType::Bishop, PieceColor::Black)),
+                Some((PieceType::King, PieceColor::Black)),
+                Some((PieceType::King, PieceColor::White)),
+                Some((PieceType::Queen, PieceColor::Black)),
+                Some((PieceType::Rook, PieceColor::Black)),
+                Some((PieceType::Rook, PieceColor::White)),
+            ]
+        );
     }
 }

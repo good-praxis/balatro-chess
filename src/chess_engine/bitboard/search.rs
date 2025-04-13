@@ -1,12 +1,14 @@
+use strum::IntoEnumIterator;
+
 use crate::chess_engine::{
     bitboard::Ply,
     pieces::{PieceColor, PieceType},
 };
 use std::collections::BinaryHeap;
 
-use super::Bitboards;
+use super::{Bitboards, bitboard_idx};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Weights {
     // Material weights
     pub king: i32,
@@ -21,9 +23,24 @@ pub struct Weights {
     pub movement: i32,
 }
 
+impl Default for Weights {
+    fn default() -> Self {
+        Self {
+            king: 4000,
+            queen: 180,
+            rook: 100,
+            bishop: 60,
+            knight: 60,
+            pawn: 20,
+            isolated_pawn: -5,
+            movement: 1,
+        }
+    }
+}
+
 /// Metadata stuct for search
 #[derive(Default, Debug)]
-struct SearchMeta {
+pub struct SearchMeta {
     current_tree: Vec<Ply>,
     nodes_visited: u64,
     /// Index: WeightMap
@@ -50,15 +67,7 @@ impl SearchMeta {
 }
 
 impl Bitboards {
-    pub fn evaluate(&self, search_meta: &SearchMeta) -> i32 {
-        const KING_WEIGHT: i32 = 4000;
-        const QUEEN_WEIGHT: i32 = 180;
-        const ROOK_WEIGHT: i32 = 100;
-        const BISHOP_WEIGHT: i32 = 60;
-        const KNIGHT_WEIGHT: i32 = 60;
-        const PAWN_WEIGHT: i32 = 20;
-        const MOVEMENT_WEIGHT: i32 = 1;
-
+    pub fn evaluate(&self, meta: &SearchMeta) -> i32 {
         // TODO: reweight pawn startegic positions
         // TODO: Add strategic weight of pawns
 
@@ -67,18 +76,47 @@ impl Bitboards {
         // - count pawns per column per color for doubled and isolated counts
         // - count legal moves, and count blocked pawns
 
+        // Material score
         let material_score: i32 = self
             .key_value_pieces_iter()
             .map(|((piece_type, piece_color), _)| match piece_type {
-                PieceType::King => piece_color.score_sign() * KING_WEIGHT,
-                PieceType::Queen => piece_color.score_sign() * QUEEN_WEIGHT,
-                PieceType::Rook => piece_color.score_sign() * ROOK_WEIGHT,
-                PieceType::Bishop => piece_color.score_sign() * BISHOP_WEIGHT,
-                PieceType::Knight => piece_color.score_sign() * KNIGHT_WEIGHT,
-                PieceType::Pawn => piece_color.score_sign() * PAWN_WEIGHT,
+                PieceType::King => piece_color.score_sign() * meta.weights.king,
+                PieceType::Queen => piece_color.score_sign() * meta.weights.queen,
+                PieceType::Rook => piece_color.score_sign() * meta.weights.rook,
+                PieceType::Bishop => piece_color.score_sign() * meta.weights.bishop,
+                PieceType::Knight => piece_color.score_sign() * meta.weights.knight,
+                PieceType::Pawn => piece_color.score_sign() * meta.weights.pawn,
             })
             .sum();
 
+        // Isolate pawn count
+        let window: u16 = 0b010;
+        let mask: u16 = 0b111;
+        let mut isolated_pawns_count = 0;
+
+        for color in PieceColor::iter() {
+            let pawns =
+                self.boards[bitboard_idx(PieceType::Pawn, color)].to_column_representation();
+
+            if pawns.trailing_ones() == 1 {
+                isolated_pawns_count += color.score_sign()
+            }
+
+            if pawns.leading_ones() == 1 {
+                isolated_pawns_count += color.score_sign()
+            }
+
+            for _ in 0..=13 {
+                let masked_pawns = pawns & mask;
+                if (masked_pawns | window).count_ones() == 1 {
+                    isolated_pawns_count += color.score_sign()
+                }
+            }
+        }
+
+        let pawn_score = meta.weights.isolated_pawn * isolated_pawns_count;
+
+        // Move score
         let move_score = self
             .all_legal_plys_by_color::<Vec<Ply>>(PieceColor::White)
             .len() as i32
@@ -86,8 +124,8 @@ impl Bitboards {
                 .all_legal_plys_by_color::<Vec<Ply>>(PieceColor::Black)
                 .len() as i32;
 
-        (material_score + (MOVEMENT_WEIGHT * move_score))
-            * search_meta.last_ply_by().next().score_sign()
+        (material_score + pawn_score + (meta.weights.movement * move_score))
+            * meta.last_ply_by().next().score_sign()
     }
 
     fn quiescence_search(&mut self, meta: &mut SearchMeta, mut alpha: i32, beta: i32) -> i32 {
@@ -230,6 +268,22 @@ mod tests {
         );
         let score = boards.evaluate(&SearchMeta::default());
         assert!(score.is_positive());
+    }
+
+    #[test]
+    fn evaluate_isolated_pawns_score() {
+        let boards = Bitboards::from_str(
+            r#"
+            PPPPPPPP
+            00000000
+            00000000
+            p0p0p0pp
+            00000000
+            p000p00p
+            "#,
+        );
+        let score = boards.evaluate(&SearchMeta::default());
+        assert!(score.is_negative());
     }
 
     #[test]

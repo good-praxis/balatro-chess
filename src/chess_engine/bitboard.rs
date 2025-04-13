@@ -91,6 +91,20 @@ impl Bitboard {
     pub fn to_bit_idx(&self) -> BitIndex {
         self.trailing_zeros().into()
     }
+
+    /// Reduce bitboard to a column-wise representation by or-ing 16-bit words
+    pub fn to_column_representation(&self) -> u16 {
+        let bytes = self.to_le_bytes();
+        let mut words = [0u16; 8];
+        for i in 0..8 {
+            let offset = i * 2;
+            words[i] = bytes[offset] as u16;
+            words[i] <<= 8;
+            words[i] += bytes[offset + 1] as u16;
+        }
+
+        words.iter().fold(0, |acc, e| acc | e)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -677,5 +691,23 @@ mod tests {
                 Some(Piece(PieceType::Rook, PieceColor::White)),
             ]
         );
+    }
+
+    #[test]
+    fn test_column_representation() {
+        let boards = Bitboards::from_str(
+            r#"
+        00000p00
+        00p00000
+        0000p000
+        p0000000
+        00000000
+        000p0000
+        "#,
+        );
+        let expect: u16 = 0b00111101 << 8;
+        let pawns = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let column_rep = pawns.to_column_representation();
+        assert_eq!(column_rep, expect);
     }
 }

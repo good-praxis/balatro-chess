@@ -105,7 +105,7 @@ impl Bitboard {
         let bit_idx = self.to_bit_idx();
 
         let normal = dir(self);
-        if *normal != 0 && *normal & **blocked == 0 {
+        if *normal != 0 && *normal & **blocked == 0 && *normal & **capturable == 0 {
             moves.push(Ply {
                 moving_piece: (PieceType::Pawn, color),
                 from: bit_idx,
@@ -116,7 +116,7 @@ impl Bitboard {
             // Normal push was possible, check for double
             if **self & **unmoved_pieces != 0 {
                 let double = dir(&normal);
-                if *double != 0 && *double & **blocked == 0 {
+                if *double != 0 && *double & **blocked == 0 && *normal & **capturable == 0 {
                     moves.push(Ply {
                         moving_piece: (PieceType::Pawn, color),
                         from: bit_idx,
@@ -378,5 +378,26 @@ mod tests {
         );
         assert_eq!(plys.len(), 3);
         assert!(plys.pop().unwrap().capturing.is_some())
+    }
+
+    #[test]
+    fn pawn_cannot_step_on_king() {
+        let boards = Bitboards::from_str(
+            r#"
+            K
+            p
+            "#,
+        );
+        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+
+        let plys: Vec<Ply> = board.pawn_plys(
+            &boards.blocked_mask_for_color(PieceColor::White),
+            &boards.all_pieces_by_color(PieceColor::Black),
+            boards.all_piece_types_by_color(PieceColor::Black),
+            PieceColor::White,
+            &boards.unmoved_pieces,
+            &boards.en_passant,
+        );
+        assert_eq!(plys.len(), 0);
     }
 }

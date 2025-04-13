@@ -1,3 +1,5 @@
+use std::collections::BinaryHeap;
+
 use crate::chess_engine::{
     bitboard::Ply,
     pieces::{PieceColor, PieceType},
@@ -102,6 +104,51 @@ impl Bitboards {
 
         best_score
     }
+
+    fn alpha_beta(
+        &mut self,
+        meta: &mut SearchMeta,
+        mut alpha: i32,
+        beta: i32,
+        depth: i8,
+    ) -> (i32, Option<Ply>) {
+        if depth == 0 {
+            return (
+                self.quiescence_search(meta, alpha, beta),
+                meta.current_tree.last().cloned(),
+            );
+        };
+
+        let mut best_move = (i32::MIN, None);
+        for this_move in self.all_legal_plys_by_color::<BinaryHeap<Ply>>(meta.last_ply_by().next())
+        {
+            meta.nodes_visited += 1;
+            self.make_ply(&this_move);
+            meta.current_tree.push(this_move);
+            let score = self
+                .alpha_beta(
+                    meta,
+                    beta.saturating_neg(),
+                    alpha.saturating_neg(),
+                    depth - 1,
+                )
+                .0
+                .saturating_neg();
+            let last_ply = meta.current_tree.pop().unwrap_or_default();
+            self.unmake_ply(&last_ply, meta.current_tree.last());
+
+            if score > best_move.0 {
+                best_move = (score, Some(this_move));
+                if score > alpha {
+                    alpha = score;
+                }
+            }
+            if score >= beta {
+                return best_move;
+            }
+        }
+        best_move
+    }
 }
 
 #[cfg(test)]
@@ -156,7 +203,39 @@ mod tests {
             "#,
         );
         let mut meta = SearchMeta::default();
-        let score = boards.quiescence_search(&mut meta, MIN, MAX);
+        let _score = boards.quiescence_search(&mut meta, MIN, MAX);
         assert_eq!(meta.nodes_visited, 8);
+    }
+
+    #[test]
+    fn alpha_beta_search_nodes_visited() {
+        let mut boards = Bitboards::from_str(
+            r#"
+            0QR
+            q00
+            0r0
+            "#,
+        );
+        let mut meta = SearchMeta::default();
+        let _score = boards.alpha_beta(&mut meta, MIN, MAX, 1);
+        assert_eq!(meta.nodes_visited, 11);
+    }
+
+    #[test]
+    fn alpha_beta_search_expected_result() {
+        let mut boards = Bitboards::from_str(
+            r#"
+            0QR
+            q00
+            0r0
+            "#,
+        );
+        let mut meta = SearchMeta::default();
+        let result = boards.alpha_beta(&mut meta, MIN, MAX, 1);
+        assert!(result.1.is_some());
+        assert_eq!(
+            result.1.unwrap().moving_piece,
+            (PieceType::Rook, PieceColor::White)
+        )
     }
 }

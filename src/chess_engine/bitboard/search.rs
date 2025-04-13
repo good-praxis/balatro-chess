@@ -9,6 +9,7 @@ use super::Bitboards;
 #[derive(Default, Clone, Debug)]
 struct SearchMeta {
     current_tree: Vec<Ply>,
+    nodes_visited: u64,
 }
 impl SearchMeta {
     fn last_ply_by(&self) -> PieceColor {
@@ -63,10 +64,50 @@ impl Bitboards {
         (material_score + (MOVEMENT_WEIGHT * move_score))
             * search_meta.last_ply_by().next().score_sign()
     }
+
+    fn quiescence_search(&mut self, meta: &mut SearchMeta, mut alpha: i32, beta: i32) -> i32 {
+        let eval = self.evaluate(meta);
+        let mut best_score = eval;
+
+        //beta cutoff
+        if eval >= beta {
+            return beta;
+        }
+
+        if alpha < eval {
+            alpha = eval;
+        }
+
+        for ply in self.all_legal_capturing_plys_by_color::<Vec<Ply>>(meta.last_ply_by().next()) {
+            meta.nodes_visited += 1;
+            self.make_ply(&ply);
+            meta.current_tree.push(ply);
+
+            let score = self
+                .quiescence_search(meta, beta.saturating_neg(), alpha.saturating_neg())
+                .saturating_neg();
+            let last_ply = meta.current_tree.pop().unwrap_or_default();
+            self.unmake_ply(&last_ply, meta.current_tree.last());
+
+            if score > best_score {
+                best_score = score;
+                if score > alpha {
+                    alpha = score;
+                }
+            }
+            if score >= beta {
+                return best_score;
+            }
+        }
+
+        best_score
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::i32::{MAX, MIN};
+
     use super::*;
     use crate::chess_engine::game::Game;
 
@@ -103,5 +144,19 @@ mod tests {
         );
         let score = boards.evaluate(&SearchMeta::default());
         assert!(score.is_positive());
+    }
+
+    #[test]
+    fn quiescence_search_until_quiet_position() {
+        let mut boards = Bitboards::from_str(
+            r#"
+            P0P
+            0P0
+            p0p
+            "#,
+        );
+        let mut meta = SearchMeta::default();
+        let score = boards.quiescence_search(&mut meta, MIN, MAX);
+        assert_eq!(meta.nodes_visited, 8);
     }
 }

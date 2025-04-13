@@ -141,6 +141,13 @@ impl Bitboards {
         self.boards[moving_piece_idx].set(ply.from, false);
         self.boards[moving_piece_idx].set(ply.to, true);
 
+        // Update piece list
+        for piece in self.piece_list[moving_piece_idx].iter_mut() {
+            if piece == &ply.from {
+                *piece = ply.to
+            }
+        }
+
         // Handle capturing
         if let Some((piece_type, idx)) = ply.capturing {
             // update position boards
@@ -191,6 +198,13 @@ impl Bitboards {
         let moving_piece_idx = bitboard_idx(ply.moving_piece.0, ply.moving_piece.1);
         self.boards[moving_piece_idx].set(ply.to, false);
         self.boards[moving_piece_idx].set(ply.from, true);
+
+        // Update piece list
+        for piece in self.piece_list[moving_piece_idx].iter_mut() {
+            if piece == &ply.to {
+                *piece = ply.from
+            }
+        }
 
         // Handle capturing
         if let Some((piece_type, idx)) = ply.capturing {
@@ -686,5 +700,48 @@ mod tests {
 
         bitboard.make_ply(&ply);
         assert!(!bitboard.legality_check(ply.moving_piece.1));
+    }
+
+    #[test]
+    fn make_ply_update_piece_list() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        0
+        p
+        "#,
+        );
+
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 16.into(),
+            to: 0.into(),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        let bitboard_idx = bitboard_idx(PieceType::Pawn, PieceColor::White);
+        assert_eq!(bitboard.piece_list[bitboard_idx], vec![0.into()]);
+    }
+
+    #[test]
+    fn unmake_ply_update_piece_list() {
+        let mut bitboard = Bitboards::from_str(
+            r#"
+        0
+        p
+        "#,
+        );
+
+        let ply = Ply {
+            moving_piece: (PieceType::Pawn, PieceColor::White),
+            from: 16.into(),
+            to: 0.into(),
+            ..Default::default()
+        };
+
+        bitboard.make_ply(&ply);
+        bitboard.unmake_ply(&ply, None);
+        let bitboard_idx = bitboard_idx(PieceType::Pawn, PieceColor::White);
+        assert_eq!(bitboard.piece_list[bitboard_idx], vec![16.into()]);
     }
 }

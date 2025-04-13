@@ -8,7 +8,7 @@ use std::{
 use strum::IntoEnumIterator;
 
 use super::{
-    pieces::{PieceColor, PieceType},
+    pieces::{Piece, PieceColor, PieceType},
     zobrist::{Zobrist, ZobristHash},
 };
 
@@ -16,6 +16,7 @@ pub mod bitwise_traits;
 pub mod move_gen;
 
 mod search;
+pub use search::Weights;
 
 pub use move_gen::ply::Ply;
 
@@ -119,6 +120,24 @@ impl PartialEq for Bitboards {
     }
 }
 
+impl Display for Bitboards {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mailbox = self.to_mailbox();
+        let mut board_str = String::new();
+        for (i, piece) in mailbox.iter().enumerate() {
+            if i as u32 % self.limits.trailing_ones() == 0 {
+                board_str.push('\n');
+            }
+            if let Some(piece) = piece {
+                board_str.push(piece.to_char());
+            } else {
+                board_str.push_str("-");
+            }
+        }
+        write!(f, "{}", board_str)
+    }
+}
+
 impl Bitboards {
     pub fn from_str(input: &str) -> Self {
         let bitboard_count = PieceType::iter().count() * PieceColor::iter().count();
@@ -203,7 +222,7 @@ impl Bitboards {
         new_bitboards
     }
 
-    pub fn to_mailbox(&self) -> Vec<Option<(PieceType, PieceColor)>> {
+    pub fn to_mailbox(&self) -> Vec<Option<Piece>> {
         let tile_count = self.limits.count_ones() as usize;
         let mut mailbox = vec![None; tile_count];
         let row_length = self.limits.trailing_ones();
@@ -213,7 +232,7 @@ impl Bitboards {
                 let bitboard_idx = bitboard_idx(piece_type, color);
                 for pos in self.piece_list[bitboard_idx].iter() {
                     let mailbox_idx = (**pos % 16 + (row_length * (**pos / 16))) as usize;
-                    mailbox[mailbox_idx] = Some((piece_type, color));
+                    mailbox[mailbox_idx] = Some(Piece(piece_type, color));
                 }
             }
         }
@@ -647,15 +666,15 @@ mod tests {
         assert_eq!(
             mailbox,
             vec![
-                Some((PieceType::Pawn, PieceColor::White)),
+                Some(Piece(PieceType::Pawn, PieceColor::White)),
                 None,
                 None,
-                Some((PieceType::Bishop, PieceColor::Black)),
-                Some((PieceType::King, PieceColor::Black)),
-                Some((PieceType::King, PieceColor::White)),
-                Some((PieceType::Queen, PieceColor::Black)),
-                Some((PieceType::Rook, PieceColor::Black)),
-                Some((PieceType::Rook, PieceColor::White)),
+                Some(Piece(PieceType::Bishop, PieceColor::Black)),
+                Some(Piece(PieceType::King, PieceColor::Black)),
+                Some(Piece(PieceType::King, PieceColor::White)),
+                Some(Piece(PieceType::Queen, PieceColor::Black)),
+                Some(Piece(PieceType::Rook, PieceColor::Black)),
+                Some(Piece(PieceType::Rook, PieceColor::White)),
             ]
         );
     }

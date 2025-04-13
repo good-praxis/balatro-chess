@@ -1,9 +1,8 @@
-use std::cmp::Ordering;
-
 use crate::chess_engine::{
     bitboard::{BitIndex, Bitboard, Bitboards, bitboard_idx},
     pieces::{PieceColor, PieceType},
 };
+use std::cmp::Ordering;
 
 /// A classical chess move from either side.
 /// contains data for capturing, castling, promotions

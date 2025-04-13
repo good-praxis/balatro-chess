@@ -15,6 +15,27 @@ pub struct LegacyPiece {
     pub has_moved: bool,
 }
 
+#[derive(Component, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct Piece(pub PieceType, pub PieceColor);
+impl Piece {
+    pub fn to_char(&self) -> char {
+        match self {
+            Piece(PieceType::King, PieceColor::White) => 'k',
+            Piece(PieceType::King, PieceColor::Black) => 'K',
+            Piece(PieceType::Queen, PieceColor::White) => 'q',
+            Piece(PieceType::Queen, PieceColor::Black) => 'Q',
+            Piece(PieceType::Rook, PieceColor::White) => 'r',
+            Piece(PieceType::Rook, PieceColor::Black) => 'R',
+            Piece(PieceType::Bishop, PieceColor::White) => 'b',
+            Piece(PieceType::Bishop, PieceColor::Black) => 'B',
+            Piece(PieceType::Knight, PieceColor::White) => 'n',
+            Piece(PieceType::Knight, PieceColor::Black) => 'N',
+            Piece(PieceType::Pawn, PieceColor::White) => 'p',
+            Piece(PieceType::Pawn, PieceColor::Black) => 'P',
+        }
+    }
+}
+
 impl LegacyPiece {
     pub fn new(piece_type: PieceType, color: PieceColor, pos: Pos) -> Self {
         Self {

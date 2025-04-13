@@ -1,19 +1,42 @@
-use std::collections::BinaryHeap;
-
 use crate::chess_engine::{
     bitboard::Ply,
     pieces::{PieceColor, PieceType},
 };
+use std::collections::BinaryHeap;
 
 use super::Bitboards;
 
+#[derive(Debug, Default)]
+pub struct Weights {
+    // Material weights
+    pub king: i32,
+    pub queen: i32,
+    pub rook: i32,
+    pub bishop: i32,
+    pub knight: i32,
+    pub pawn: i32,
+
+    // Strategic weights
+    pub isolated_pawn: i32,
+    pub movement: i32,
+}
+
 /// Metadata stuct for search
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Debug)]
 struct SearchMeta {
     current_tree: Vec<Ply>,
     nodes_visited: u64,
+    /// Index: WeightMap
+    weights: Weights,
 }
 impl SearchMeta {
+    fn with_weights(weights: Weights) -> Self {
+        Self {
+            weights,
+            ..Default::default()
+        }
+    }
+
     fn last_ply_by(&self) -> PieceColor {
         self.current_tree
             .last()
@@ -148,6 +171,22 @@ impl Bitboards {
             }
         }
         best_move
+    }
+
+    /// Searches the next best ply at a given depth + quienscence search;
+    /// Returns the (score, best_ply, visited_nodes_count)
+    pub fn search_next_ply(
+        &mut self,
+        last_ply: Option<Ply>,
+        depth: i8,
+        weights: Weights,
+    ) -> (i32, Option<Ply>, u64) {
+        let mut meta = SearchMeta::with_weights(weights);
+        if last_ply.is_some() {
+            meta.current_tree.push(last_ply.unwrap());
+        }
+        let result = self.alpha_beta(&mut meta, i32::MIN, i32::MAX, depth);
+        (result.0, result.1, meta.nodes_visited)
     }
 }
 

@@ -225,20 +225,18 @@ impl Bitboards {
         &self,
     ) -> impl Iterator<Item = ((PieceType, PieceColor), BitIndex)> {
         PieceType::iter()
-            .map(|piece_type| {
-                return [
+            .flat_map(|piece_type| {
+                [
                     (piece_type, PieceColor::White),
                     (piece_type, PieceColor::Black),
-                ];
+                ]
             })
-            .flatten()
-            .map(|(piece_type, piece_color)| {
+            .flat_map(|(piece_type, piece_color)| {
                 let bitboard_idx = bitboard_idx(piece_type, piece_color);
                 self.piece_list[bitboard_idx]
                     .iter()
                     .map(move |idx| ((piece_type, piece_color), *idx))
             })
-            .flatten()
     }
 
     pub fn all_pieces(&self) -> Bitboard {

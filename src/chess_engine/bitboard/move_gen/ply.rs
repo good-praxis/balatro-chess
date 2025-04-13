@@ -271,6 +271,10 @@ pub fn legality_filter(
     })
 }
 
+pub fn captures_only(iter: impl Iterator<Item = Ply>) -> impl Iterator<Item = Ply> {
+    iter.filter(|ply| ply.capturing.is_some())
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BinaryHeap;

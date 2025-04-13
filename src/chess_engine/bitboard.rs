@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use move_gen::ply::legality_filter;
+use move_gen::ply::{captures_only, legality_filter};
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -358,6 +358,93 @@ impl Bitboards {
             coll
         })
     }
+
+    /// all legal capturing_plys by color
+    pub fn all_legal_capturing_plys_by_color<T: Default + Extend<Ply>>(
+        &self,
+        color: PieceColor,
+    ) -> T {
+        PieceType::iter().fold(Default::default(), |mut coll, piece_type| {
+            for piece in self.piece_list[bitboard_idx(piece_type, color)].iter() {
+                let board = Bitboard::from(*piece);
+                let blocked = &self.blocked_mask_for_color(color);
+                let capturable = &self.all_pieces_by_color(color.next());
+                let capturable_iter = self.all_piece_types_by_color(color.next());
+                let piece = (piece_type, color);
+                match piece_type {
+                    PieceType::King => {
+                        coll.extend(legality_filter(
+                            captures_only(board.king_plys_iter(
+                                blocked,
+                                capturable,
+                                capturable_iter,
+                                piece,
+                            )),
+                            self,
+                        ));
+                    }
+                    PieceType::Queen => {
+                        coll.extend(legality_filter(
+                            captures_only(board.queen_plys_iter(
+                                blocked,
+                                capturable,
+                                capturable_iter,
+                                piece,
+                            )),
+                            self,
+                        ));
+                    }
+                    PieceType::Rook => {
+                        coll.extend(legality_filter(
+                            captures_only(board.rook_plys_iter(
+                                blocked,
+                                capturable,
+                                capturable_iter,
+                                piece,
+                            )),
+                            self,
+                        ));
+                    }
+
+                    PieceType::Bishop => {
+                        coll.extend(legality_filter(
+                            captures_only(board.bishop_plys_iter(
+                                blocked,
+                                capturable,
+                                capturable_iter,
+                                piece,
+                            )),
+                            self,
+                        ));
+                    }
+                    PieceType::Knight => {
+                        coll.extend(legality_filter(
+                            captures_only(board.knight_plys_iter(
+                                blocked,
+                                capturable,
+                                capturable_iter,
+                                piece,
+                            )),
+                            self,
+                        ));
+                    }
+
+                    PieceType::Pawn => coll.extend(legality_filter(
+                        captures_only(board.pawn_plys_iter(
+                            blocked,
+                            capturable,
+                            capturable_iter,
+                            color,
+                            &self.unmoved_pieces,
+                            &self.en_passant,
+                        )),
+                        self,
+                    )),
+                };
+            }
+            coll
+        })
+    }
 }
 
 /// Bitboard index of a certain PieceType and PieceColor combo
@@ -530,6 +617,21 @@ mod tests {
         );
         let white_moves: Vec<Ply> = boards.all_legal_plys_by_color(PieceColor::White);
         assert_eq!(white_moves.len(), 8);
+    }
+
+    #[test]
+    fn all_captures_by_sites_complex() {
+        let boards = Bitboards::from_str(
+            r#"
+        00000
+        00k00
+        00rB0
+        p000b
+        00000
+        "#,
+        );
+        let white_moves: Vec<Ply> = boards.all_legal_capturing_plys_by_color(PieceColor::White);
+        assert_eq!(white_moves.len(), 3);
     }
 
     #[test]

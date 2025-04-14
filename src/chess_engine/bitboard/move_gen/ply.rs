@@ -1,19 +1,33 @@
 use crate::chess_engine::{
     bitboard::{BitIndex, Bitboard, Bitboards, bitboard_idx},
-    pieces::{PieceColor, PieceType},
+    pieces::{Piece, PieceColor, PieceType, PieceWithBitboard},
 };
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Display};
 
 /// A classical chess move from either side.
 /// contains data for capturing, castling, promotions
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Ply {
-    pub moving_piece: (PieceType, PieceColor),
+    pub moving_piece: Piece,
     pub from: BitIndex,
     pub to: BitIndex,
-    pub capturing: Option<(PieceType, BitIndex)>,
-    pub also_move: Option<(PieceType, PieceColor, BitIndex, BitIndex)>,
+    pub capturing: Option<(Piece, BitIndex)>,
+    pub also_move: Option<(Piece, BitIndex, BitIndex)>,
     pub en_passant_board: Option<Bitboard>,
+}
+
+impl Display for Ply {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let piece = self.moving_piece.to_char();
+        let from = self.from.to_string();
+        let to = self.to.to_string();
+        let mut capture = "".to_string();
+        if let Some((captured, _)) = self.capturing {
+            capture.push_str(&format!("x{}", captured.to_char()));
+        }
+
+        write!(f, "{}{}{}{}", piece, from, to, capture)
+    }
 }
 
 impl PartialOrd for Ply {
@@ -40,7 +54,7 @@ impl Ord for Ply {
 impl Ply {
     fn capture_sorting_value(&self) -> u8 {
         if let Some(captured) = self.capturing {
-            let victim_value = match captured.0 {
+            let victim_value = match captured.0.0 {
                 PieceType::Queen => 25,
                 PieceType::Rook => 19,
                 PieceType::Bishop => 13,
@@ -70,8 +84,8 @@ impl Bitboard {
         dirs: &[fn(&Self) -> Self],
         blocked: &Self,
         capturable: &Self,
-        capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
-        by_piece: (PieceType, PieceColor),
+        capturing_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        by_piece: Piece,
     ) -> impl Iterator<Item = Ply> {
         dirs.iter()
             .map(|dir| dir(self))
@@ -80,10 +94,10 @@ impl Bitboard {
                 let mut capturing = None;
                 if *board & **capturable != 0 {
                     // There is a capture present
-                    for (piece_type, opposing_board) in capturing_iter.clone() {
+                    for PieceWithBitboard(piece, opposing_board) in capturing_iter.clone() {
                         let capture = board & opposing_board;
                         if *capture != 0 {
-                            capturing = Some((piece_type, capture.to_bit_idx()))
+                            capturing = Some((piece, capture.to_bit_idx()))
                         }
                     }
                 }
@@ -104,8 +118,8 @@ impl Bitboard {
         dirs: &[fn(&Self, &Self, &Self) -> Vec<Self>],
         blocked: &Self,
         capturable: &Self,
-        capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
-        by_piece: (PieceType, PieceColor),
+        capturing_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        by_piece: Piece,
     ) -> impl Iterator<Item = Ply> {
         dirs.iter()
             .map(|dir| dir(self, blocked, capturable))
@@ -114,10 +128,10 @@ impl Bitboard {
                 let mut capturing = None;
                 if *board & **capturable != 0 {
                     // There is a capture present
-                    for (piece_type, opposing_board) in capturing_iter.clone() {
+                    for PieceWithBitboard(piece, opposing_board) in capturing_iter.clone() {
                         let capture = board & opposing_board;
                         if *capture != 0 {
-                            capturing = Some((piece_type, capture.to_bit_idx()))
+                            capturing = Some((piece, capture.to_bit_idx()))
                         }
                     }
                 }
@@ -136,7 +150,7 @@ impl Bitboard {
 impl Bitboards {
     pub fn make_ply(&mut self, ply: &Ply) {
         // Updating moving piece
-        let moving_piece_idx = bitboard_idx(ply.moving_piece.0, ply.moving_piece.1);
+        let moving_piece_idx = bitboard_idx(ply.moving_piece);
         self.boards[moving_piece_idx].set(ply.from, false);
         self.boards[moving_piece_idx].set(ply.to, true);
 
@@ -148,9 +162,9 @@ impl Bitboards {
         }
 
         // Handle capturing
-        if let Some((piece_type, idx)) = ply.capturing {
+        if let Some((captured_piece, idx)) = ply.capturing {
             // update position boards
-            let capturing_idx = bitboard_idx(piece_type, ply.moving_piece.1.next());
+            let capturing_idx = bitboard_idx(captured_piece);
             self.boards[capturing_idx].set(idx, false);
 
             // update piece list
@@ -163,8 +177,8 @@ impl Bitboards {
         }
 
         // Handle linked move
-        if let Some((piece_type, piece_color, from, to)) = ply.also_move {
-            let moving_piece_idx = bitboard_idx(piece_type, piece_color);
+        if let Some((other_piece, from, to)) = ply.also_move {
+            let moving_piece_idx = bitboard_idx(other_piece);
             self.boards[moving_piece_idx].set(from, false);
             self.boards[moving_piece_idx].set(to, true);
         }
@@ -194,7 +208,7 @@ impl Bitboards {
 
     pub fn unmake_ply(&mut self, ply: &Ply, previous_ply: Option<&Ply>) {
         // Updating moving piece
-        let moving_piece_idx = bitboard_idx(ply.moving_piece.0, ply.moving_piece.1);
+        let moving_piece_idx = bitboard_idx(ply.moving_piece);
         self.boards[moving_piece_idx].set(ply.to, false);
         self.boards[moving_piece_idx].set(ply.from, true);
 
@@ -206,9 +220,9 @@ impl Bitboards {
         }
 
         // Handle capturing
-        if let Some((piece_type, idx)) = ply.capturing {
+        if let Some((captured_piece, idx)) = ply.capturing {
             // update position boards
-            let capturing_idx = bitboard_idx(piece_type, ply.moving_piece.1.next());
+            let capturing_idx = bitboard_idx(captured_piece);
             self.boards[capturing_idx].set(idx, true);
 
             // update piece list
@@ -216,8 +230,8 @@ impl Bitboards {
         }
 
         // Handle linked move
-        if let Some((piece_type, piece_color, from, to)) = ply.also_move {
-            let moving_piece_idx = bitboard_idx(piece_type, piece_color);
+        if let Some((other_piece, from, to)) = ply.also_move {
+            let moving_piece_idx = bitboard_idx(other_piece);
             self.boards[moving_piece_idx].set(to, false);
             self.boards[moving_piece_idx].set(from, true);
         }
@@ -264,7 +278,7 @@ impl Bitboards {
         }
 
         // king check
-        let king_mask = self.boards[bitboard_idx(PieceType::King, last_move_by)];
+        let king_mask = self.boards[bitboard_idx(Piece(PieceType::King, last_move_by))];
         let opponent_en_prise = self.en_prise_by_color(last_move_by.next());
 
         *king_mask & *opponent_en_prise == 0
@@ -297,7 +311,7 @@ mod tests {
             Bitboard, Bitboards, bitboard_idx,
             move_gen::{king::KING_DIRS, queen::QUEEN_STEP_DIRS},
         },
-        pieces::{PieceColor, PieceType},
+        pieces::*,
     };
 
     use super::Ply;
@@ -310,15 +324,15 @@ mod tests {
             0P
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::King, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_KING)];
 
         let mut plys = board
             .single_step_plys_in_dirs(
                 &KING_DIRS,
                 &boards.blocked_mask_for_color(PieceColor::White),
                 &boards.all_pieces_by_color(PieceColor::Black),
-                boards.all_piece_types_by_color(PieceColor::Black),
-                (PieceType::King, PieceColor::White),
+                boards.all_pieces_by_color_iter(PieceColor::Black),
+                WHITE_KING,
             )
             .collect::<BinaryHeap<Ply>>();
 
@@ -335,15 +349,15 @@ mod tests {
             000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Queen, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_QUEEN)];
 
         let mut plys = board
             .multi_step_plys_in_dirs(
                 &QUEEN_STEP_DIRS,
                 &boards.blocked_mask_for_color(PieceColor::White),
                 &boards.all_pieces_by_color(PieceColor::Black),
-                boards.all_piece_types_by_color(PieceColor::Black),
-                (PieceType::Queen, PieceColor::White),
+                boards.all_pieces_by_color_iter(PieceColor::Black),
+                WHITE_QUEEN,
             )
             .collect::<BinaryHeap<Ply>>();
 
@@ -354,36 +368,36 @@ mod tests {
     #[test]
     fn mvv_lva() {
         let pawn_takes_pawn = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
-            capturing: Some((PieceType::Pawn, 0.into())),
+            moving_piece: WHITE_PAWN,
+            capturing: Some((BLACK_PAWN, 0.into())),
             ..Default::default()
         };
 
         let pawn_takes_queen = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
-            capturing: Some((PieceType::Queen, 0.into())),
+            moving_piece: WHITE_PAWN,
+            capturing: Some((BLACK_QUEEN, 0.into())),
             ..Default::default()
         };
 
         let queen_takes_pawn = Ply {
-            moving_piece: (PieceType::Queen, PieceColor::White),
-            capturing: Some((PieceType::Pawn, 0.into())),
+            moving_piece: WHITE_QUEEN,
+            capturing: Some((BLACK_PAWN, 0.into())),
             ..Default::default()
         };
 
         let queen_takes_queen = Ply {
-            moving_piece: (PieceType::Queen, PieceColor::White),
-            capturing: Some((PieceType::Queen, 0.into())),
+            moving_piece: WHITE_QUEEN,
+            capturing: Some((BLACK_QUEEN, 0.into())),
             ..Default::default()
         };
 
         let queen_no_take = Ply {
-            moving_piece: (PieceType::Queen, PieceColor::White),
+            moving_piece: WHITE_QUEEN,
             ..Default::default()
         };
 
         let pawn_no_take = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             ..Default::default()
         };
 
@@ -428,7 +442,7 @@ mod tests {
         );
 
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 16.into(),
             to: 0.into(),
             ..Default::default()
@@ -450,7 +464,7 @@ mod tests {
         let expected = bitboard.clone();
 
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 16.into(),
             to: 0.into(),
             ..Default::default()
@@ -477,10 +491,10 @@ mod tests {
         "#,
         );
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 16.into(),
             to: 1.into(),
-            capturing: Some((PieceType::Pawn, 1.into())),
+            capturing: Some((BLACK_PAWN, 1.into())),
             ..Default::default()
         };
 
@@ -500,10 +514,10 @@ mod tests {
         let expected = bitboard.clone();
 
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 16.into(),
             to: 1.into(),
-            capturing: Some((PieceType::Pawn, 1.into())),
+            capturing: Some((BLACK_PAWN, 1.into())),
             ..Default::default()
         };
 
@@ -529,9 +543,9 @@ mod tests {
         00
         "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_PAWN)];
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 32.into(),
             to: 0.into(),
             en_passant_board: Some(Bitboard(1 << 16)),
@@ -553,7 +567,7 @@ mod tests {
         );
 
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 32.into(),
             to: 0.into(),
             en_passant_board: Some(Bitboard(1 << 16)),
@@ -582,10 +596,10 @@ mod tests {
         00
         "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_PAWN)];
 
         let first_ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 32.into(),
             to: 0.into(),
             en_passant_board: Some(Bitboard(1 << 16)),
@@ -593,7 +607,7 @@ mod tests {
         };
 
         let second_ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 0.into(),
             to: 16.into(),
             ..Default::default()
@@ -615,7 +629,7 @@ mod tests {
         );
 
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 16.into(),
             to: 0.into(),
             ..Default::default()
@@ -642,7 +656,7 @@ mod tests {
         );
 
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 16.into(),
             to: 0.into(),
             ..Default::default()
@@ -669,10 +683,10 @@ mod tests {
         );
 
         let ply = Ply {
-            moving_piece: (PieceType::Rook, PieceColor::White),
+            moving_piece: WHITE_ROOK,
             from: 16.into(),
             to: 0.into(),
-            capturing: Some((PieceType::Rook, 0.into())),
+            capturing: Some((BLACK_ROOK, 0.into())),
             ..Default::default()
         };
 
@@ -691,7 +705,7 @@ mod tests {
         );
 
         let ply = Ply {
-            moving_piece: (PieceType::Rook, PieceColor::White),
+            moving_piece: WHITE_ROOK,
             from: 16.into(),
             to: 17.into(),
             ..Default::default()
@@ -711,14 +725,14 @@ mod tests {
         );
 
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 16.into(),
             to: 0.into(),
             ..Default::default()
         };
 
         bitboard.make_ply(&ply);
-        let bitboard_idx = bitboard_idx(PieceType::Pawn, PieceColor::White);
+        let bitboard_idx = bitboard_idx(WHITE_PAWN);
         assert_eq!(bitboard.piece_list[bitboard_idx], vec![0.into()]);
     }
 
@@ -732,7 +746,7 @@ mod tests {
         );
 
         let ply = Ply {
-            moving_piece: (PieceType::Pawn, PieceColor::White),
+            moving_piece: WHITE_PAWN,
             from: 16.into(),
             to: 0.into(),
             ..Default::default()
@@ -740,7 +754,7 @@ mod tests {
 
         bitboard.make_ply(&ply);
         bitboard.unmake_ply(&ply, None);
-        let bitboard_idx = bitboard_idx(PieceType::Pawn, PieceColor::White);
+        let bitboard_idx = bitboard_idx(WHITE_PAWN);
         assert_eq!(bitboard.piece_list[bitboard_idx], vec![16.into()]);
     }
 }

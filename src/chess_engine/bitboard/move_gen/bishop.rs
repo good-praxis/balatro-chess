@@ -1,6 +1,6 @@
 use crate::chess_engine::{
     bitboard::Bitboard,
-    pieces::{PieceColor, PieceType},
+    pieces::{Piece, PieceWithBitboard},
 };
 
 use super::ply::Ply;
@@ -33,8 +33,8 @@ impl Bitboard {
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
-        piece: (PieceType, PieceColor),
+        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        piece: Piece,
     ) -> impl Iterator<Item = Ply> {
         self.multi_step_plys_in_dirs(
             &BISHOP_STEP_DIRS,
@@ -49,8 +49,8 @@ impl Bitboard {
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
-        piece: (PieceType, PieceColor),
+        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        piece: Piece,
     ) -> T {
         self.bishop_plys_iter(blocked, capturable, capturable_iter, piece)
             .collect()
@@ -63,7 +63,7 @@ mod tests {
 
     use crate::chess_engine::{
         bitboard::{Bitboards, Ply, bitboard_idx},
-        pieces::{PieceColor, PieceType},
+        pieces::{PieceColor, WHITE_BISHOP},
     };
 
     #[test]
@@ -77,7 +77,7 @@ mod tests {
             00000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
 
         let arr = board.bishop_move_arr(
             &boards.blocked_mask_for_color(PieceColor::White),
@@ -97,7 +97,7 @@ mod tests {
             00000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
 
         let expected = Bitboards::from_str(
             r#"
@@ -108,7 +108,7 @@ mod tests {
             b000b
             "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_BISHOP)];
         let mask = board.bishop_move_mask(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
@@ -127,7 +127,7 @@ mod tests {
             00000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
 
         let expected = Bitboards::from_str(
             r#"
@@ -138,7 +138,7 @@ mod tests {
             b000b
             "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_BISHOP)];
         let mask = board.bishop_en_prise_mask(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
@@ -157,13 +157,13 @@ mod tests {
             00000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
 
         let mut plys: BinaryHeap<Ply> = board.bishop_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_piece_types_by_color(PieceColor::Black),
-            (PieceType::Bishop, PieceColor::White),
+            boards.all_pieces_by_color_iter(PieceColor::Black),
+            WHITE_BISHOP,
         );
         assert_eq!(plys.len(), 8);
         assert!(plys.pop().unwrap().capturing.is_some())

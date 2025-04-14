@@ -1,10 +1,25 @@
 use super::{
+    bitboard::Bitboard,
     game::Game,
     moves::{LegacyPly, MoveVec, Pos},
 };
 use bevy::prelude::*;
 use std::cmp::Ordering;
+use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+
+pub const WHITE_KING: Piece = Piece(PieceType::King, PieceColor::White);
+pub const BLACK_KING: Piece = Piece(PieceType::King, PieceColor::Black);
+pub const WHITE_QUEEN: Piece = Piece(PieceType::Queen, PieceColor::White);
+pub const BLACK_QUEEN: Piece = Piece(PieceType::Queen, PieceColor::Black);
+pub const WHITE_ROOK: Piece = Piece(PieceType::Rook, PieceColor::White);
+pub const BLACK_ROOK: Piece = Piece(PieceType::Rook, PieceColor::Black);
+pub const WHITE_BISHOP: Piece = Piece(PieceType::Bishop, PieceColor::White);
+pub const BLACK_BISHOP: Piece = Piece(PieceType::Bishop, PieceColor::Black);
+pub const WHITE_KNIGHT: Piece = Piece(PieceType::Knight, PieceColor::White);
+pub const BLACK_KNIGHT: Piece = Piece(PieceType::Knight, PieceColor::Black);
+pub const WHITE_PAWN: Piece = Piece(PieceType::Pawn, PieceColor::White);
+pub const BLACK_PAWN: Piece = Piece(PieceType::Pawn, PieceColor::Black);
 
 /// To be removed
 #[derive(Component, Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
@@ -20,21 +35,53 @@ pub struct Piece(pub PieceType, pub PieceColor);
 impl Piece {
     pub fn to_char(&self) -> char {
         match self {
-            Piece(PieceType::King, PieceColor::White) => 'k',
-            Piece(PieceType::King, PieceColor::Black) => 'K',
-            Piece(PieceType::Queen, PieceColor::White) => 'q',
-            Piece(PieceType::Queen, PieceColor::Black) => 'Q',
-            Piece(PieceType::Rook, PieceColor::White) => 'r',
-            Piece(PieceType::Rook, PieceColor::Black) => 'R',
-            Piece(PieceType::Bishop, PieceColor::White) => 'b',
-            Piece(PieceType::Bishop, PieceColor::Black) => 'B',
-            Piece(PieceType::Knight, PieceColor::White) => 'n',
-            Piece(PieceType::Knight, PieceColor::Black) => 'N',
-            Piece(PieceType::Pawn, PieceColor::White) => 'p',
-            Piece(PieceType::Pawn, PieceColor::Black) => 'P',
+            &WHITE_KING => 'k',
+            &BLACK_KING => 'K',
+            &WHITE_QUEEN => 'q',
+            &BLACK_QUEEN => 'Q',
+            &WHITE_ROOK => 'r',
+            &BLACK_ROOK => 'R',
+            &WHITE_BISHOP => 'b',
+            &BLACK_BISHOP => 'B',
+            &WHITE_KNIGHT => 'n',
+            &BLACK_KNIGHT => 'N',
+            &WHITE_PAWN => 'p',
+            &BLACK_PAWN => 'P',
+        }
+    }
+
+    pub fn iter() -> impl Iterator<Item = Self> {
+        PieceType::iter()
+            .flat_map(|piece_type| PieceColor::iter().map(move |color| Piece(piece_type, color)))
+    }
+
+    pub fn iter_color(color: PieceColor) -> impl Iterator<Item = Self> + Clone {
+        PieceType::iter().map(move |piece_type| Piece(piece_type, color))
+    }
+}
+
+impl From<char> for Piece {
+    fn from(value: char) -> Self {
+        match value {
+            'k' => WHITE_KING,
+            'K' => BLACK_KING,
+            'q' => WHITE_QUEEN,
+            'Q' => BLACK_QUEEN,
+            'r' => WHITE_ROOK,
+            'R' => BLACK_ROOK,
+            'b' => WHITE_BISHOP,
+            'B' => BLACK_BISHOP,
+            'n' => WHITE_KNIGHT,
+            'N' => BLACK_KNIGHT,
+            'p' => WHITE_PAWN,
+            'P' => BLACK_PAWN,
+            _ => panic!("Unexpected char: {}", value),
         }
     }
 }
+
+#[derive(Clone, Copy, Default, Debug)]
+pub struct PieceWithBitboard(pub Piece, pub Bitboard);
 
 impl LegacyPiece {
     pub fn new(piece_type: PieceType, color: PieceColor, pos: Pos) -> Self {
@@ -47,19 +94,19 @@ impl LegacyPiece {
     }
 
     pub fn to_char(&self) -> char {
-        match (self.piece_type, self.color) {
-            (PieceType::King, PieceColor::White) => 'k',
-            (PieceType::King, PieceColor::Black) => 'K',
-            (PieceType::Queen, PieceColor::White) => 'q',
-            (PieceType::Queen, PieceColor::Black) => 'Q',
-            (PieceType::Rook, PieceColor::White) => 'r',
-            (PieceType::Rook, PieceColor::Black) => 'R',
-            (PieceType::Bishop, PieceColor::White) => 'b',
-            (PieceType::Bishop, PieceColor::Black) => 'B',
-            (PieceType::Knight, PieceColor::White) => 'n',
-            (PieceType::Knight, PieceColor::Black) => 'N',
-            (PieceType::Pawn, PieceColor::White) => 'p',
-            (PieceType::Pawn, PieceColor::Black) => 'P',
+        match Piece(self.piece_type, self.color) {
+            WHITE_KING => 'k',
+            BLACK_KING => 'K',
+            WHITE_QUEEN => 'q',
+            BLACK_QUEEN => 'Q',
+            WHITE_ROOK => 'r',
+            BLACK_ROOK => 'R',
+            WHITE_BISHOP => 'b',
+            BLACK_BISHOP => 'B',
+            WHITE_KNIGHT => 'n',
+            BLACK_KNIGHT => 'N',
+            WHITE_PAWN => 'p',
+            BLACK_PAWN => 'P',
         }
     }
 

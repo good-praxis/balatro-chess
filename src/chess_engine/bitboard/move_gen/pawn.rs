@@ -1,6 +1,6 @@
 use crate::chess_engine::{
     bitboard::Bitboard,
-    pieces::{PieceColor, PieceType},
+    pieces::{Piece, PieceColor, PieceType, PieceWithBitboard},
 };
 
 use super::ply::Ply;
@@ -94,7 +94,7 @@ impl Bitboard {
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
         color: PieceColor,
         unmoved_pieces: &Self,
         en_passant: &Self,
@@ -107,7 +107,7 @@ impl Bitboard {
         let normal = dir(self);
         if *normal != 0 && *normal & **blocked == 0 && *normal & **capturable == 0 {
             moves.push(Ply {
-                moving_piece: (PieceType::Pawn, color),
+                moving_piece: Piece(PieceType::Pawn, color),
                 from: bit_idx,
                 to: normal.to_bit_idx(),
                 ..Default::default()
@@ -118,7 +118,7 @@ impl Bitboard {
                 let double = dir(&normal);
                 if *double != 0 && *double & **blocked == 0 && *normal & **capturable == 0 {
                     moves.push(Ply {
-                        moving_piece: (PieceType::Pawn, color),
+                        moving_piece: Piece(PieceType::Pawn, color),
                         from: bit_idx,
                         to: double.to_bit_idx(),
                         en_passant_board: Some(normal),
@@ -135,14 +135,14 @@ impl Bitboard {
             let capture = dir(&normal);
             if *capture & **capturable != 0 {
                 // There is a capture present
-                for (piece_type, opposing_board) in capturable_iter.clone() {
+                for PieceWithBitboard(piece_type, opposing_board) in capturable_iter.clone() {
                     let capture = capture & opposing_board;
                     if *capture != 0 {
                         capturing = Some((piece_type, capture.to_bit_idx()))
                     }
                 }
                 moves.push(Ply {
-                    moving_piece: (PieceType::Pawn, color),
+                    moving_piece: Piece(PieceType::Pawn, color),
                     from: bit_idx,
                     to: capture.to_bit_idx(),
                     capturing,
@@ -155,11 +155,11 @@ impl Bitboard {
                 let capture = dir(&normal);
                 if *capture & **en_passant != 0 {
                     moves.push(Ply {
-                        moving_piece: (PieceType::Pawn, color),
+                        moving_piece: Piece(PieceType::Pawn, color),
                         from: bit_idx,
                         to: capture.to_bit_idx(),
                         capturing: Some((
-                            PieceType::Pawn,
+                            Piece(PieceType::Pawn, color.next()),
                             pawn_dir(color.next())(&capture).to_bit_idx(),
                         )),
                         ..Default::default()
@@ -175,7 +175,7 @@ impl Bitboard {
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturing_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
+        capturing_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
         color: PieceColor,
         unmoved_pieces: &Self,
         en_passant: &Self,
@@ -198,7 +198,7 @@ mod tests {
 
     use crate::chess_engine::{
         bitboard::{Bitboards, Ply, bitboard_idx},
-        pieces::{PieceColor, PieceType},
+        pieces::{BLACK_PAWN, PieceColor, WHITE_PAWN},
     };
 
     #[test]
@@ -210,7 +210,7 @@ mod tests {
             0pP
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_PAWN)];
 
         let en_passant = Bitboards::from_str(
             r#"
@@ -219,7 +219,7 @@ mod tests {
             000
             "#,
         );
-        let en_passant = en_passant.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let en_passant = en_passant.boards[bitboard_idx(WHITE_PAWN)];
 
         let expected = Bitboards::from_str(
             r#"
@@ -228,7 +228,7 @@ mod tests {
             000
             "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_PAWN)];
         let mask = board.pawn_move_mask(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
@@ -248,7 +248,7 @@ mod tests {
             000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(BLACK_PAWN)];
 
         let en_passant = Bitboards::from_str(
             r#"
@@ -257,7 +257,7 @@ mod tests {
             000
             "#,
         );
-        let en_passant = en_passant.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let en_passant = en_passant.boards[bitboard_idx(WHITE_PAWN)];
 
         let expected = Bitboards::from_str(
             r#"
@@ -266,7 +266,7 @@ mod tests {
             0p0
             "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_PAWN)];
         let mask = board.pawn_move_mask(
             &boards.blocked_mask_for_color(PieceColor::Black),
             &boards.all_pieces_by_color(PieceColor::White),
@@ -285,7 +285,7 @@ mod tests {
             0p0
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_PAWN)];
 
         let expected = Bitboards::from_str(
             r#"
@@ -293,7 +293,7 @@ mod tests {
             000
             "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_PAWN)];
         let mask = board.pawn_en_prise_mask(
             &boards.blocked_mask_for_color(PieceColor::White),
             PieceColor::White,
@@ -309,7 +309,7 @@ mod tests {
             000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(BLACK_PAWN)];
 
         let expected = Bitboards::from_str(
             r#"
@@ -317,7 +317,7 @@ mod tests {
             p0p
             "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_PAWN)];
         let mask = board.pawn_en_prise_mask(
             &boards.blocked_mask_for_color(PieceColor::Black),
             PieceColor::Black,
@@ -334,12 +334,12 @@ mod tests {
             0p0
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_PAWN)];
 
         let mut plys: BinaryHeap<Ply> = board.pawn_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_piece_types_by_color(PieceColor::Black),
+            boards.all_pieces_by_color_iter(PieceColor::Black),
             PieceColor::White,
             &boards.unmoved_pieces,
             &boards.en_passant,
@@ -357,7 +357,7 @@ mod tests {
             000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(BLACK_PAWN)];
 
         let en_passant = Bitboards::from_str(
             r#"
@@ -366,12 +366,12 @@ mod tests {
             000
             "#,
         );
-        let en_passant = en_passant.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let en_passant = en_passant.boards[bitboard_idx(WHITE_PAWN)];
 
         let mut plys: BinaryHeap<Ply> = board.pawn_plys(
             &boards.blocked_mask_for_color(PieceColor::Black),
             &boards.all_pieces_by_color(PieceColor::White),
-            boards.all_piece_types_by_color(PieceColor::White),
+            boards.all_pieces_by_color_iter(PieceColor::White),
             PieceColor::Black,
             &boards.unmoved_pieces,
             &en_passant,
@@ -388,12 +388,12 @@ mod tests {
             p
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_PAWN)];
 
         let plys: Vec<Ply> = board.pawn_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_piece_types_by_color(PieceColor::Black),
+            boards.all_pieces_by_color_iter(PieceColor::Black),
             PieceColor::White,
             &boards.unmoved_pieces,
             &boards.en_passant,

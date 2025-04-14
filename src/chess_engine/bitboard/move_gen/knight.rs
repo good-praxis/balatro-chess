@@ -1,6 +1,6 @@
 use crate::chess_engine::{
     bitboard::Bitboard,
-    pieces::{PieceColor, PieceType},
+    pieces::{Piece, PieceWithBitboard},
 };
 
 use super::ply::Ply;
@@ -39,8 +39,8 @@ impl Bitboard {
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
-        piece: (PieceType, PieceColor),
+        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        piece: Piece,
     ) -> impl Iterator<Item = Ply> {
         self.single_step_plys_in_dirs(&KNIGHT_DIRS, blocked, capturable, capturable_iter, piece)
     }
@@ -49,8 +49,8 @@ impl Bitboard {
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = (PieceType, Bitboard)> + Clone,
-        piece: (PieceType, PieceColor),
+        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        piece: Piece,
     ) -> T {
         self.knight_plys_iter(blocked, capturable, capturable_iter, piece)
             .collect()
@@ -63,7 +63,7 @@ mod tests {
 
     use crate::chess_engine::{
         bitboard::{Bitboards, Ply, bitboard_idx},
-        pieces::{PieceColor, PieceType},
+        pieces::{PieceColor, WHITE_KNIGHT},
     };
 
     #[test]
@@ -77,7 +77,7 @@ mod tests {
             00000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Knight, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_KNIGHT)];
 
         let expected = Bitboards::from_str(
             r#"
@@ -88,7 +88,7 @@ mod tests {
             0n0n0
             "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Knight, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_KNIGHT)];
         let mask = board.knight_move_mask(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
@@ -107,7 +107,7 @@ mod tests {
             00000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Knight, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_KNIGHT)];
 
         let expected = Bitboards::from_str(
             r#"
@@ -118,7 +118,7 @@ mod tests {
             0n0n0
             "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Knight, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_KNIGHT)];
         let mask = board.knight_en_prise_mask(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
@@ -137,13 +137,13 @@ mod tests {
             00000
             "#,
         );
-        let board = boards.boards[bitboard_idx(PieceType::Knight, PieceColor::White)];
+        let board = boards.boards[bitboard_idx(WHITE_KNIGHT)];
 
         let mut plys: BinaryHeap<Ply> = board.knight_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_piece_types_by_color(PieceColor::Black),
-            (PieceType::Knight, PieceColor::White),
+            boards.all_pieces_by_color_iter(PieceColor::Black),
+            WHITE_KNIGHT,
         );
         assert_eq!(plys.len(), 8);
         assert!(plys.pop().unwrap().capturing.is_some())

@@ -8,7 +8,7 @@ use std::{
 use strum::IntoEnumIterator;
 
 use super::{
-    pieces::{Piece, PieceColor, PieceType},
+    pieces::{Piece, PieceColor, PieceType, PieceWithBitboard},
     zobrist::{Zobrist, ZobristHash},
 };
 
@@ -35,6 +35,23 @@ impl From<Bitboard> for BitIndex {
     #[inline]
     fn from(value: Bitboard) -> Self {
         value.to_bit_idx()
+    }
+}
+
+impl Display for BitIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // We know that the board will grow in row length to the 'right',
+        // i*16 will always be the first used file, and therefore always be 'A'
+        // so we can always know the file label by it's `x % 16` result
+        let file = ('A' as u8 + (**self % 16) as u8) as char;
+
+        // We flip convention here, defining rank to be counted from top
+        // so that we can naturally grow the board 'downwards'. This lets us
+        // omit counting the active rows; Which require a reference to the
+        // limit board.
+        let rank = **self / 16;
+
+        f.write_fmt(format_args!("{}{}", file, rank))
     }
 }
 
@@ -186,27 +203,13 @@ impl Bitboards {
                 continue;
             }
 
-            // Determine color and type
-            let color = if char.is_ascii_lowercase() {
-                PieceColor::White
-            } else {
-                PieceColor::Black
-            };
-            let piece_type = match char {
-                'k' | 'K' => PieceType::King,
-                'q' | 'Q' => PieceType::Queen,
-                'r' | 'R' => PieceType::Rook,
-                'n' | 'N' => PieceType::Knight,
-                'b' | 'B' => PieceType::Bishop,
-                'p' | 'P' => PieceType::Pawn,
-                _ => panic!("Unexpected char: {}", char),
-            };
+            let piece: Piece = char.into();
 
             // flip bit in question
-            boards[bitboard_idx(piece_type, color)].set(idx.into(), true);
+            boards[bitboard_idx(piece)].set(idx.into(), true);
 
             // update piece_list with piece
-            piece_list[bitboard_idx(piece_type, color)].push(idx.into());
+            piece_list[bitboard_idx(piece)].push(idx.into());
 
             // increment index
             idx += 1;
@@ -242,35 +245,24 @@ impl Bitboards {
         let mut mailbox = vec![None; tile_count];
         let row_length = self.limits.trailing_ones();
 
-        for piece_type in PieceType::iter() {
-            for color in PieceColor::iter() {
-                let bitboard_idx = bitboard_idx(piece_type, color);
-                for pos in self.piece_list[bitboard_idx].iter() {
-                    let mailbox_idx = (**pos % 16 + (row_length * (**pos / 16))) as usize;
-                    mailbox[mailbox_idx] = Some(Piece(piece_type, color));
-                }
+        for piece in Piece::iter() {
+            let bitboard_idx = bitboard_idx(piece);
+            for pos in self.piece_list[bitboard_idx].iter() {
+                let mailbox_idx = (**pos % 16 + (row_length * (**pos / 16))) as usize;
+                mailbox[mailbox_idx] = Some(piece);
             }
         }
 
         mailbox
     }
 
-    pub fn key_value_pieces_iter(
-        &self,
-    ) -> impl Iterator<Item = ((PieceType, PieceColor), BitIndex)> {
-        PieceType::iter()
-            .flat_map(|piece_type| {
-                [
-                    (piece_type, PieceColor::White),
-                    (piece_type, PieceColor::Black),
-                ]
-            })
-            .flat_map(|(piece_type, piece_color)| {
-                let bitboard_idx = bitboard_idx(piece_type, piece_color);
-                self.piece_list[bitboard_idx]
-                    .iter()
-                    .map(move |idx| ((piece_type, piece_color), *idx))
-            })
+    pub fn key_value_pieces_iter(&self) -> impl Iterator<Item = (Piece, BitIndex)> {
+        Piece::iter().flat_map(|piece| {
+            let bitboard_idx = bitboard_idx(piece);
+            self.piece_list[bitboard_idx]
+                .iter()
+                .map(move |idx| (piece, *idx))
+        })
     }
 
     pub fn all_pieces(&self) -> Bitboard {
@@ -279,19 +271,19 @@ impl Bitboards {
 
     pub fn all_pieces_by_color(&self, color: PieceColor) -> Bitboard {
         let mut board = Bitboard(0);
-        for piece_type in PieceType::iter() {
-            board |= self.boards[bitboard_idx(piece_type, color)];
+        for piece in Piece::iter_color(color) {
+            board |= self.boards[bitboard_idx(piece)];
         }
         board
     }
 
     /// Primarily used when we don't want a full mask of all pieces, but want to determine which piece we are capturing
-    pub fn all_piece_types_by_color(
+    pub fn all_pieces_by_color_iter(
         &self,
         color: PieceColor,
-    ) -> impl Iterator<Item = (PieceType, Bitboard)> + Clone {
-        PieceType::iter()
-            .map(move |piece_type| (piece_type, self.boards[bitboard_idx(piece_type, color)]))
+    ) -> impl Iterator<Item = PieceWithBitboard> + Clone {
+        Piece::iter_color(color)
+            .map(|piece| PieceWithBitboard(piece, self.boards[bitboard_idx(piece)]))
     }
 
     /// Used with functions asked for blocking masks
@@ -301,9 +293,9 @@ impl Bitboards {
 
     pub fn en_prise_by_color(&self, color: PieceColor) -> Bitboard {
         let mut board = Bitboard(0);
-        for piece_type in PieceType::iter() {
-            for idx in self.piece_list[bitboard_idx(piece_type, color)].clone() {
-                board |= match piece_type {
+        for piece in Piece::iter_color(color) {
+            for idx in self.piece_list[bitboard_idx(piece)].clone() {
+                board |= match piece.0 {
                     PieceType::King => Bitboard::from(idx).king_en_prise_mask(
                         &self.blocked_mask_for_color(color),
                         &self.all_pieces_by_color(color.next()),
@@ -335,12 +327,12 @@ impl Bitboards {
     /// all legal plys by color
     pub fn all_legal_plys_by_color<T: Default + Extend<Ply>>(&self, color: PieceColor) -> T {
         PieceType::iter().fold(Default::default(), |mut coll, piece_type| {
-            for piece in self.piece_list[bitboard_idx(piece_type, color)].iter() {
+            for piece in self.piece_list[bitboard_idx(Piece(piece_type, color))].iter() {
                 let board = Bitboard::from(*piece);
                 let blocked = &self.blocked_mask_for_color(color);
                 let capturable = &self.all_pieces_by_color(color.next());
-                let capturable_iter = self.all_piece_types_by_color(color.next());
-                let piece = (piece_type, color);
+                let capturable_iter = self.all_pieces_by_color_iter(color.next());
+                let piece = Piece(piece_type, color);
                 match piece_type {
                     PieceType::King => {
                         coll.extend(legality_filter(
@@ -397,12 +389,12 @@ impl Bitboards {
         color: PieceColor,
     ) -> T {
         PieceType::iter().fold(Default::default(), |mut coll, piece_type| {
-            for piece in self.piece_list[bitboard_idx(piece_type, color)].iter() {
+            for piece in self.piece_list[bitboard_idx(Piece(piece_type, color))].iter() {
                 let board = Bitboard::from(*piece);
                 let blocked = &self.blocked_mask_for_color(color);
                 let capturable = &self.all_pieces_by_color(color.next());
-                let capturable_iter = self.all_piece_types_by_color(color.next());
-                let piece = (piece_type, color);
+                let capturable_iter = self.all_pieces_by_color_iter(color.next());
+                let piece = Piece(piece_type, color);
                 match piece_type {
                     PieceType::King => {
                         coll.extend(legality_filter(
@@ -480,14 +472,14 @@ impl Bitboards {
 }
 
 /// Bitboard index of a certain PieceType and PieceColor combo
-pub fn bitboard_idx(piece_type: PieceType, piece_color: PieceColor) -> usize {
-    piece_type as usize + (piece_color as usize * PieceType::iter().count())
+pub fn bitboard_idx(piece: Piece) -> usize {
+    piece.0 as usize + (piece.1 as usize * PieceType::iter().count())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::chess_engine::game::Game;
+    use crate::chess_engine::{game::Game, pieces::*};
 
     #[test]
     fn bitboard_getter() {
@@ -531,18 +523,18 @@ mod tests {
         use PieceType::*;
         let game = Game::default();
         let bb = game.boards.boards;
-        assert_eq!(bb[bitboard_idx(King, White)].count_ones(), 1);
-        assert_eq!(bb[bitboard_idx(King, Black)].count_ones(), 1);
-        assert_eq!(bb[bitboard_idx(Queen, White)].count_ones(), 1);
-        assert_eq!(bb[bitboard_idx(Queen, Black)].count_ones(), 1);
-        assert_eq!(bb[bitboard_idx(Rook, White)].count_ones(), 2);
-        assert_eq!(bb[bitboard_idx(Rook, Black)].count_ones(), 2);
-        assert_eq!(bb[bitboard_idx(Knight, White)].count_ones(), 2);
-        assert_eq!(bb[bitboard_idx(Knight, Black)].count_ones(), 2);
-        assert_eq!(bb[bitboard_idx(Bishop, White)].count_ones(), 2);
-        assert_eq!(bb[bitboard_idx(Bishop, Black)].count_ones(), 2);
-        assert_eq!(bb[bitboard_idx(Pawn, White)].count_ones(), 8);
-        assert_eq!(bb[bitboard_idx(Pawn, Black)].count_ones(), 8);
+        assert_eq!(bb[bitboard_idx(WHITE_KING)].count_ones(), 1);
+        assert_eq!(bb[bitboard_idx(BLACK_KING)].count_ones(), 1);
+        assert_eq!(bb[bitboard_idx(WHITE_QUEEN)].count_ones(), 1);
+        assert_eq!(bb[bitboard_idx(BLACK_QUEEN)].count_ones(), 1);
+        assert_eq!(bb[bitboard_idx(WHITE_ROOK)].count_ones(), 2);
+        assert_eq!(bb[bitboard_idx(BLACK_ROOK)].count_ones(), 2);
+        assert_eq!(bb[bitboard_idx(WHITE_KNIGHT)].count_ones(), 2);
+        assert_eq!(bb[bitboard_idx(BLACK_KNIGHT)].count_ones(), 2);
+        assert_eq!(bb[bitboard_idx(WHITE_BISHOP)].count_ones(), 2);
+        assert_eq!(bb[bitboard_idx(BLACK_BISHOP)].count_ones(), 2);
+        assert_eq!(bb[bitboard_idx(WHITE_PAWN)].count_ones(), 8);
+        assert_eq!(bb[bitboard_idx(BLACK_PAWN)].count_ones(), 8);
 
         let all_pieces = bb.into_iter().reduce(|acc, e| acc | e).unwrap();
         assert_eq!(all_pieces.count_ones(), 32);
@@ -554,18 +546,18 @@ mod tests {
         use PieceType::*;
         let game = Game::default();
         let p = game.boards.piece_list;
-        assert_eq!(p[bitboard_idx(King, White)].len(), 1);
-        assert_eq!(p[bitboard_idx(King, Black)].len(), 1);
-        assert_eq!(p[bitboard_idx(Queen, White)].len(), 1);
-        assert_eq!(p[bitboard_idx(Queen, Black)].len(), 1);
-        assert_eq!(p[bitboard_idx(Rook, White)].len(), 2);
-        assert_eq!(p[bitboard_idx(Rook, Black)].len(), 2);
-        assert_eq!(p[bitboard_idx(Knight, White)].len(), 2);
-        assert_eq!(p[bitboard_idx(Knight, Black)].len(), 2);
-        assert_eq!(p[bitboard_idx(Bishop, White)].len(), 2);
-        assert_eq!(p[bitboard_idx(Bishop, Black)].len(), 2);
-        assert_eq!(p[bitboard_idx(Pawn, White)].len(), 8);
-        assert_eq!(p[bitboard_idx(Pawn, Black)].len(), 8);
+        assert_eq!(p[bitboard_idx(WHITE_KING)].len(), 1);
+        assert_eq!(p[bitboard_idx(BLACK_KING)].len(), 1);
+        assert_eq!(p[bitboard_idx(WHITE_QUEEN)].len(), 1);
+        assert_eq!(p[bitboard_idx(BLACK_QUEEN)].len(), 1);
+        assert_eq!(p[bitboard_idx(WHITE_ROOK)].len(), 2);
+        assert_eq!(p[bitboard_idx(BLACK_ROOK)].len(), 2);
+        assert_eq!(p[bitboard_idx(WHITE_KNIGHT)].len(), 2);
+        assert_eq!(p[bitboard_idx(BLACK_KNIGHT)].len(), 2);
+        assert_eq!(p[bitboard_idx(WHITE_BISHOP)].len(), 2);
+        assert_eq!(p[bitboard_idx(BLACK_BISHOP)].len(), 2);
+        assert_eq!(p[bitboard_idx(WHITE_PAWN)].len(), 8);
+        assert_eq!(p[bitboard_idx(BLACK_PAWN)].len(), 8);
     }
 
     #[test]
@@ -619,7 +611,7 @@ mod tests {
         00000000
         "#,
         );
-        let expected = expected.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let expected = expected.boards[bitboard_idx(WHITE_PAWN)];
 
         let en_prise = bitboard.en_prise_by_color(PieceColor::White)
             | bitboard.en_prise_by_color(PieceColor::Black);
@@ -681,15 +673,15 @@ mod tests {
         assert_eq!(
             mailbox,
             vec![
-                Some(Piece(PieceType::Pawn, PieceColor::White)),
+                Some(WHITE_PAWN),
                 None,
                 None,
-                Some(Piece(PieceType::Bishop, PieceColor::Black)),
-                Some(Piece(PieceType::King, PieceColor::Black)),
-                Some(Piece(PieceType::King, PieceColor::White)),
-                Some(Piece(PieceType::Queen, PieceColor::Black)),
-                Some(Piece(PieceType::Rook, PieceColor::Black)),
-                Some(Piece(PieceType::Rook, PieceColor::White)),
+                Some(BLACK_BISHOP),
+                Some(BLACK_KING),
+                Some(WHITE_KING),
+                Some(BLACK_QUEEN),
+                Some(BLACK_ROOK),
+                Some(WHITE_ROOK),
             ]
         );
     }
@@ -707,7 +699,7 @@ mod tests {
         "#,
         );
         let expect: u16 = 0b00111101 << 8;
-        let pawns = boards.boards[bitboard_idx(PieceType::Pawn, PieceColor::White)];
+        let pawns = boards.boards[bitboard_idx(WHITE_PAWN)];
         let column_rep = pawns.to_column_representation();
         assert_eq!(column_rep, expect);
     }

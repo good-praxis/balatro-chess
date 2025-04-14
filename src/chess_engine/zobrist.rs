@@ -1,18 +1,16 @@
+use super::{
+    bitboard::BitIndex,
+    game::Game,
+    pieces::{LegacyPiece, Piece},
+};
 use bevy::prelude::Deref;
 use rand::prelude::*;
 use rand_chacha::ChaCha8Rng;
 use std::{collections::HashMap, ops::BitXorAssign};
-use strum::IntoEnumIterator;
-
-use super::{
-    bitboard::BitIndex,
-    game::Game,
-    pieces::{LegacyPiece, PieceColor, PieceType},
-};
 
 #[derive(Debug, Hash, PartialEq, Eq)]
 enum ZobristKey {
-    Piece(PieceType, PieceColor, u32),
+    Piece(Piece, u32),
 }
 
 #[derive(Debug, Deref, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -40,14 +38,9 @@ impl Zobrist {
         let mut rng = ChaCha8Rng::seed_from_u64(24337);
         let mut table = HashMap::new();
 
-        for piece_type in PieceType::iter() {
-            for color in PieceColor::iter() {
-                for i in 0..board_size {
-                    table.insert(
-                        ZobristKey::Piece(piece_type, color, i),
-                        rng.random::<u32>().into(),
-                    );
-                }
+        for piece in Piece::iter() {
+            for i in 0..board_size {
+                table.insert(ZobristKey::Piece(piece, i), rng.random::<u32>().into());
             }
         }
 
@@ -58,7 +51,8 @@ impl Zobrist {
         let mut hash = 0.into();
         for (i, tile) in board.iter().enumerate() {
             if let Some(piece) = tile {
-                hash ^= self.table[&ZobristKey::Piece(piece.piece_type, piece.color, i as u32)];
+                hash ^=
+                    self.table[&ZobristKey::Piece(Piece(piece.piece_type, piece.color), i as u32)];
             }
         }
 
@@ -67,11 +61,11 @@ impl Zobrist {
 
     pub fn gen_initial_hash_bitboard(
         &self,
-        pieces_iter: impl Iterator<Item = ((PieceType, PieceColor), BitIndex)>,
+        pieces_iter: impl Iterator<Item = (Piece, BitIndex)>,
     ) -> ZobristHash {
         let mut hash = 0.into();
-        for ((piece_type, piece_color), bitindex) in pieces_iter {
-            hash ^= self.table[&ZobristKey::Piece(piece_type, piece_color, *bitindex)];
+        for (piece, bitindex) in pieces_iter {
+            hash ^= self.table[&ZobristKey::Piece(piece, *bitindex)];
         }
 
         hash
@@ -84,13 +78,12 @@ impl Zobrist {
         ply: &super::bitboard::Ply,
     ) -> ZobristHash {
         // remove previous position for moving piece
-        hash ^= self.table[&ZobristKey::Piece(ply.moving_piece.0, ply.moving_piece.1, *ply.from)];
+        hash ^= self.table[&ZobristKey::Piece(ply.moving_piece, *ply.from)];
         // add new position for moving piece
-        hash ^= self.table[&ZobristKey::Piece(ply.moving_piece.0, ply.moving_piece.1, *ply.to)];
+        hash ^= self.table[&ZobristKey::Piece(ply.moving_piece, *ply.to)];
         // remove captured piece position
         if let Some(captured) = ply.capturing {
-            hash ^=
-                self.table[&ZobristKey::Piece(captured.0, ply.moving_piece.1.next(), *captured.1)];
+            hash ^= self.table[&ZobristKey::Piece(captured.0, *captured.1)];
         }
 
         hash
@@ -105,21 +98,18 @@ impl Zobrist {
     ) -> ZobristHash {
         // remove previous position for moving piece
         hash ^= self.table[&ZobristKey::Piece(
-            ply.by.piece_type,
-            ply.by.color,
+            Piece(ply.by.piece_type, ply.by.color),
             board.pos_to_idx(ply.move_to.from) as u32,
         )];
         // add new position for moving piece
         hash ^= self.table[&ZobristKey::Piece(
-            ply.by.piece_type,
-            ply.by.color,
+            Piece(ply.by.piece_type, ply.by.color),
             board.pos_to_idx(ply.move_to.to) as u32,
         )];
         // remove captured piece position
         if let Some(captured) = ply.capturing {
             hash ^= self.table[&ZobristKey::Piece(
-                captured.piece_type,
-                ply.by.color,
+                Piece(captured.piece_type, ply.by.color),
                 board.pos_to_idx(captured.pos) as u32,
             )];
         }
@@ -132,7 +122,7 @@ impl Zobrist {
 mod tests {
     use crate::chess_engine::{
         moves::{MoveTo, Pos},
-        pieces::PieceColor,
+        pieces::{PieceColor, PieceType, WHITE_KNIGHT},
     };
 
     use super::*;
@@ -180,7 +170,7 @@ mod tests {
     fn hash_updates_bitboard() {
         let mut board = Game::default().boards;
         let ply = crate::chess_engine::bitboard::Ply {
-            moving_piece: (PieceType::Knight, PieceColor::White),
+            moving_piece: WHITE_KNIGHT,
             from: 113.into(),
             to: 80.into(),
             ..Default::default()

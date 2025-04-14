@@ -206,7 +206,7 @@ impl Bitboard {
 mod tests {
     use crate::chess_engine::{
         bitboard::{Bitboards, bitboard_idx},
-        pieces::{PieceColor, PieceType},
+        pieces::*,
     };
 
     use super::*;
@@ -220,7 +220,7 @@ mod tests {
             "#,
         );
 
-        boards.boards[bitboard_idx(PieceType::King, PieceColor::White)]
+        boards.boards[bitboard_idx(WHITE_KING)]
     }
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
             00000
             "#,
         );
-        boards.boards[bitboard_idx(PieceType::Knight, PieceColor::White)]
+        boards.boards[bitboard_idx(WHITE_KNIGHT)]
     }
 
     #[test]
@@ -376,10 +376,10 @@ mod tests {
             rrr0
             "#,
         )
-        .boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        .boards[bitboard_idx(WHITE_ROOK)];
 
-        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_ROOK)];
+        let capturable = boards.boards[bitboard_idx(BLACK_ROOK)];
 
         assert_eq!(board.fill_we(&!boards.limits, &capturable), expected);
     }
@@ -396,10 +396,10 @@ mod tests {
             0rrr
             "#,
         )
-        .boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        .boards[bitboard_idx(WHITE_ROOK)];
 
-        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_ROOK)];
+        let capturable = boards.boards[bitboard_idx(BLACK_ROOK)];
 
         assert_eq!(board.fill_ea(&!boards.limits, &capturable), expected);
     }
@@ -422,10 +422,10 @@ mod tests {
             0
             "#,
         )
-        .boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        .boards[bitboard_idx(WHITE_ROOK)];
 
-        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_ROOK)];
+        let capturable = boards.boards[bitboard_idx(BLACK_ROOK)];
 
         assert_eq!(board.fill_no(&!boards.limits, &capturable), expected);
     }
@@ -448,10 +448,10 @@ mod tests {
             r
             "#,
         )
-        .boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
+        .boards[bitboard_idx(WHITE_ROOK)];
 
-        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_ROOK)];
+        let capturable = boards.boards[bitboard_idx(BLACK_ROOK)];
 
         assert_eq!(board.fill_so(&!boards.limits, &capturable), expected);
     }
@@ -474,10 +474,10 @@ mod tests {
             0000
             "#,
         )
-        .boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        .boards[bitboard_idx(WHITE_BISHOP)];
 
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
+        let capturable = boards.boards[bitboard_idx(BLACK_BISHOP)];
 
         assert_eq!(board.fill_nw(&!boards.limits, &capturable), expected);
     }
@@ -500,10 +500,10 @@ mod tests {
             0000
             "#,
         )
-        .boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        .boards[bitboard_idx(WHITE_BISHOP)];
 
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
+        let capturable = boards.boards[bitboard_idx(BLACK_BISHOP)];
 
         assert_eq!(board.fill_ne(&!boards.limits, &capturable), expected);
     }
@@ -526,10 +526,10 @@ mod tests {
             000b
             "#,
         )
-        .boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        .boards[bitboard_idx(WHITE_BISHOP)];
 
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
+        let capturable = boards.boards[bitboard_idx(BLACK_BISHOP)];
 
         assert_eq!(board.fill_se(&!boards.limits, &capturable), expected);
     }
@@ -552,10 +552,10 @@ mod tests {
             b000
             "#,
         )
-        .boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
+        .boards[bitboard_idx(WHITE_BISHOP)];
 
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
+        let capturable = boards.boards[bitboard_idx(BLACK_BISHOP)];
 
         assert_eq!(board.fill_sw(&!boards.limits, &capturable), expected);
     }
@@ -568,8 +568,8 @@ mod tests {
             "#,
         );
 
-        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_ROOK)];
+        let capturable = boards.boards[bitboard_idx(BLACK_ROOK)];
 
         assert_eq!(board.step_we(&!boards.limits, &capturable).len(), 3);
     }
@@ -582,8 +582,8 @@ mod tests {
             "#,
         );
 
-        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_ROOK)];
+        let capturable = boards.boards[bitboard_idx(BLACK_ROOK)];
 
         assert_eq!(board.step_ea(&!boards.limits, &capturable).len(), 3);
     }
@@ -599,8 +599,8 @@ mod tests {
             "#,
         );
 
-        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_ROOK)];
+        let capturable = boards.boards[bitboard_idx(BLACK_ROOK)];
 
         assert_eq!(board.step_no(&!boards.limits, &capturable).len(), 3);
     }
@@ -616,8 +616,8 @@ mod tests {
             "#,
         );
 
-        let board = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Rook, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_ROOK)];
+        let capturable = boards.boards[bitboard_idx(BLACK_ROOK)];
 
         assert_eq!(board.step_so(&!boards.limits, &capturable).len(), 3);
     }
@@ -633,8 +633,8 @@ mod tests {
             "#,
         );
 
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
+        let capturable = boards.boards[bitboard_idx(BLACK_BISHOP)];
 
         assert_eq!(board.step_nw(&!boards.limits, &capturable).len(), 3);
     }
@@ -650,8 +650,8 @@ mod tests {
             "#,
         );
 
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
+        let capturable = boards.boards[bitboard_idx(BLACK_BISHOP)];
 
         assert_eq!(board.step_ne(&!boards.limits, &capturable).len(), 3);
     }
@@ -667,8 +667,8 @@ mod tests {
             "#,
         );
 
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
+        let capturable = boards.boards[bitboard_idx(BLACK_BISHOP)];
 
         assert_eq!(board.step_se(&!boards.limits, &capturable).len(), 3);
     }
@@ -684,8 +684,8 @@ mod tests {
             "#,
         );
 
-        let board = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::White)];
-        let capturable = boards.boards[bitboard_idx(PieceType::Bishop, PieceColor::Black)];
+        let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
+        let capturable = boards.boards[bitboard_idx(BLACK_BISHOP)];
 
         assert_eq!(board.step_sw(&!boards.limits, &capturable).len(), 3);
     }

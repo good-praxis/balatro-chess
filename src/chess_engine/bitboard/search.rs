@@ -2,7 +2,7 @@ use strum::IntoEnumIterator;
 
 use crate::chess_engine::{
     bitboard::Ply,
-    pieces::{PieceColor, PieceType},
+    pieces::{BLACK_PAWN, Piece, PieceColor, PieceType},
 };
 use std::collections::BinaryHeap;
 
@@ -58,7 +58,7 @@ impl SearchMeta {
         self.current_tree
             .last()
             .unwrap_or(&Ply {
-                moving_piece: (PieceType::Pawn, PieceColor::Black), // Default to Black, since White moves first
+                moving_piece: BLACK_PAWN, // Default to Black, since White moves first
                 ..Default::default()
             })
             .moving_piece
@@ -79,13 +79,13 @@ impl Bitboards {
         // Material score
         let material_score: i32 = self
             .key_value_pieces_iter()
-            .map(|((piece_type, piece_color), _)| match piece_type {
-                PieceType::King => piece_color.score_sign() * meta.weights.king,
-                PieceType::Queen => piece_color.score_sign() * meta.weights.queen,
-                PieceType::Rook => piece_color.score_sign() * meta.weights.rook,
-                PieceType::Bishop => piece_color.score_sign() * meta.weights.bishop,
-                PieceType::Knight => piece_color.score_sign() * meta.weights.knight,
-                PieceType::Pawn => piece_color.score_sign() * meta.weights.pawn,
+            .map(|(piece, _)| match piece {
+                Piece(PieceType::King, color) => color.score_sign() * meta.weights.king,
+                Piece(PieceType::Queen, color) => color.score_sign() * meta.weights.queen,
+                Piece(PieceType::Rook, color) => color.score_sign() * meta.weights.rook,
+                Piece(PieceType::Bishop, color) => color.score_sign() * meta.weights.bishop,
+                Piece(PieceType::Knight, color) => color.score_sign() * meta.weights.knight,
+                Piece(PieceType::Pawn, color) => color.score_sign() * meta.weights.pawn,
             })
             .sum();
 
@@ -96,7 +96,7 @@ impl Bitboards {
 
         for color in PieceColor::iter() {
             let pawns =
-                self.boards[bitboard_idx(PieceType::Pawn, color)].to_column_representation();
+                self.boards[bitboard_idx(Piece(PieceType::Pawn, color))].to_column_representation();
 
             if pawns.trailing_ones() == 1 {
                 isolated_pawns_count += color.score_sign()
@@ -243,7 +243,7 @@ mod tests {
     use std::i32::{MAX, MIN};
 
     use super::*;
-    use crate::chess_engine::game::Game;
+    use crate::chess_engine::{game::Game, pieces::WHITE_ROOK};
 
     #[test]
     fn evaluate_default() {
@@ -336,10 +336,7 @@ mod tests {
         let mut meta = SearchMeta::default();
         let result = boards.alpha_beta(&mut meta, MIN, MAX, 1);
         assert!(result.1.is_some());
-        assert_eq!(
-            result.1.unwrap().moving_piece,
-            (PieceType::Rook, PieceColor::White)
-        )
+        assert_eq!(result.1.unwrap().moving_piece, WHITE_ROOK)
     }
 
     #[test]

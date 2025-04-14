@@ -129,6 +129,14 @@ impl Bitboards {
     }
 
     fn quiescence_search(&mut self, meta: &mut SearchMeta, mut alpha: i32, beta: i32) -> i32 {
+        // Check cached results
+        let table = self.quiescence_table.lock().unwrap();
+        if table.contains_key(&(self.zobrist_hash, meta.last_ply_by())) {
+            let result = table[&(self.zobrist_hash, meta.last_ply_by())];
+            return result;
+        }
+        drop(table);
+
         let eval = self.evaluate(meta);
         let mut best_score = eval;
 
@@ -159,10 +167,12 @@ impl Bitboards {
                 }
             }
             if score >= beta {
-                return best_score;
+                break;
             }
         }
 
+        let mut table = self.quiescence_table.lock().unwrap();
+        table.insert((self.zobrist_hash, meta.last_ply_by()), best_score);
         best_score
     }
 
@@ -330,5 +340,35 @@ mod tests {
             result.1.unwrap().moving_piece,
             (PieceType::Rook, PieceColor::White)
         )
+    }
+
+    #[test]
+    fn checkmate_search() {
+        let mut boards = Bitboards::from_str(
+            r#"
+            kR0
+            0R0
+            0r0
+            "#,
+        );
+        let result = boards.search_next_ply(None, 3, Weights::default());
+        assert!(result.1.is_none());
+    }
+
+    #[test]
+    fn pre_checkmate_search() {
+        let mut boards = Bitboards::from_str(
+            r#"
+            KRr
+            0r0
+            0R0
+            "#,
+        );
+        let result = boards.search_next_ply(None, 3, Weights::default());
+        assert!(result.1.is_some());
+        let ply = result.1;
+        boards.make_ply(&ply.unwrap());
+        let result = boards.search_next_ply(ply, 3, Weights::default());
+        assert!(result.1.is_none());
     }
 }

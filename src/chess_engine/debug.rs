@@ -103,7 +103,7 @@ fn print_and_play(
             bishop: 60,
             knight: 60,
             pawn: 20,
-            isolated_pawn: 5,
+            isolated_pawn: -5,
             movement: 1,
         };
         let result = game.boards.search_next_ply(last_ply.0, 3, weights);

@@ -107,7 +107,7 @@ impl Bitboard {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Bitboards {
     /// index = PieceType + (PieceColor * amount of PieceType)
     pub boards: Vec<Bitboard>,
@@ -126,6 +126,9 @@ pub struct Bitboards {
 
     // thricefold repetition protection
     pub visited_positions: Arc<Mutex<HashMap<ZobristHash, isize>>>,
+
+    // Search-related lookup tables
+    pub quiescence_table: Arc<Mutex<HashMap<(ZobristHash, PieceColor), i32>>>,
 }
 
 impl PartialEq for Bitboards {
@@ -218,10 +221,8 @@ impl Bitboards {
             piece_list,
             limits,
             unmoved_pieces,
-            en_passant: Bitboard(0),
             zobrist_table,
-            zobrist_hash: 0.into(),
-            visited_positions: Arc::new(Mutex::new(HashMap::new())),
+            ..Default::default()
         };
 
         let zobrist_hash = new_bitboards

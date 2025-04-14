@@ -15,7 +15,7 @@ enum ZobristKey {
     Piece(PieceType, PieceColor, u32),
 }
 
-#[derive(Debug, Deref, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Deref, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ZobristHash(u32);
 
 impl From<u32> for ZobristHash {
@@ -30,7 +30,7 @@ impl BitXorAssign for ZobristHash {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Zobrist {
     table: HashMap<ZobristKey, ZobristHash>,
 }

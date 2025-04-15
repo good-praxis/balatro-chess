@@ -226,7 +226,7 @@ impl Bitboards {
 
         let unmoved_pieces = boards.iter().fold(Bitboard(0), |acc, e| acc | *e);
 
-        let zobrist_table = Arc::new(Zobrist::new(128));
+        let zobrist_table = Arc::new(Zobrist::new());
 
         let mut new_bitboards = Self {
             boards,

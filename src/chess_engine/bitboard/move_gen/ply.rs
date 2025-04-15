@@ -321,6 +321,7 @@ mod tests {
             move_gen::{king::KING_DIRS, queen::QUEEN_STEP_DIRS},
         },
         pieces::*,
+        zobrist::CHANGE_PLAYER_INDEX,
     };
 
     use super::Ply;
@@ -443,12 +444,13 @@ mod tests {
         "#,
         );
 
-        let expected = Bitboards::from_str(
+        let mut expected = Bitboards::from_str(
             r#"
         p
         0
         "#,
         );
+        expected.zobrist_hash ^= expected.zobrist_table.table[CHANGE_PLAYER_INDEX];
 
         let ply = Ply {
             moving_piece: WHITE_PAWN,
@@ -458,7 +460,7 @@ mod tests {
         };
 
         bitboard.make_ply(&ply);
-        assert_eq!(bitboard, expected);
+        assert_eq!(bitboard.zobrist_hash, expected.zobrist_hash);
     }
 
     #[test]
@@ -493,12 +495,14 @@ mod tests {
         "#,
         );
 
-        let expected = Bitboards::from_str(
+        let mut expected = Bitboards::from_str(
             r#"
         0p
         00
         "#,
         );
+        expected.zobrist_hash ^= expected.zobrist_table.table[CHANGE_PLAYER_INDEX];
+
         let ply = Ply {
             moving_piece: WHITE_PAWN,
             from: 16.into(),

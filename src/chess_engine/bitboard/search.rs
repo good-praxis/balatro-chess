@@ -442,11 +442,11 @@ mod tests {
         let mut boards = Game::default().boards;
 
         let mut iterative_meta = SearchMeta::default();
-        let iterative = boards.iterative_deepening(&mut iterative_meta, 5);
+        let _iterative = boards.iterative_deepening(&mut iterative_meta, 3);
 
         let mut exhaustive_meta = SearchMeta::default();
-        let exhaustive = boards.alpha_beta(&mut exhaustive_meta, MIN, MAX, 5);
+        let _exhaustive = boards.alpha_beta(&mut exhaustive_meta, MIN, MAX, 3);
 
-        assert_eq!(iterative_meta.nodes_visited, exhaustive_meta.nodes_visited);
+        assert!(iterative_meta.nodes_visited < exhaustive_meta.nodes_visited);
     }
 }

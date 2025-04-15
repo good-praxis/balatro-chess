@@ -119,7 +119,7 @@ impl Game {
             idx += 1;
         }
 
-        let zobrist_table = Arc::new(Zobrist::new(board.len() as u32));
+        let zobrist_table = Arc::new(Zobrist::new());
         let zobrist_hash = zobrist_table.gen_initial_hash_mailbox(&board);
 
         let mut visited = HashMap::new();

@@ -8,6 +8,9 @@ use std::cmp::Ordering;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
+pub const PIECE_TYPE_COUNT: usize = 6;
+pub const PIECE_COLOR_COUNT: usize = 2;
+
 pub const WHITE_KING: Piece = Piece(PieceType::King, PieceColor::White);
 pub const BLACK_KING: Piece = Piece(PieceType::King, PieceColor::Black);
 pub const WHITE_QUEEN: Piece = Piece(PieceType::Queen, PieceColor::White);
@@ -50,11 +53,13 @@ impl Piece {
         }
     }
 
+    /// Full iter through all possible PieceType, PieceColor combinations
     pub fn iter() -> impl Iterator<Item = Self> {
         PieceType::iter()
             .flat_map(|piece_type| PieceColor::iter().map(move |color| Piece(piece_type, color)))
     }
 
+    /// Iter through all possible PieceType of a particular color
     pub fn iter_color(color: PieceColor) -> impl Iterator<Item = Self> + Clone {
         PieceType::iter().map(move |piece_type| Piece(piece_type, color))
     }

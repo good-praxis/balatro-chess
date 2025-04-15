@@ -71,18 +71,15 @@ impl SearchMeta {
 
 impl Bitboards {
     pub fn evaluate(&self, meta: &SearchMeta) -> i32 {
-        if self
-            .evaluation_table
-            .lock()
-            .unwrap()
-            .contains_key(&self.zobrist_hash)
-        {
-            return *self
+        if self.check_cache {
+            if let Some(eval) = self
                 .evaluation_table
                 .lock()
                 .unwrap()
                 .get(&self.zobrist_hash)
-                .unwrap();
+            {
+                return *eval;
+            }
         }
 
         // TODO: reweight pawn startegic positions
@@ -153,12 +150,16 @@ impl Bitboards {
 
     fn quiescence_search(&mut self, meta: &mut SearchMeta, mut alpha: i32, beta: i32) -> i32 {
         // Check cached results
-        let table = self.quiescence_table.lock().unwrap();
-        if table.contains_key(&self.zobrist_hash) {
-            let result = table[&self.zobrist_hash];
-            return result;
+        if self.check_cache {
+            if let Some(result) = self
+                .quiescence_table
+                .lock()
+                .unwrap()
+                .get(&self.zobrist_hash)
+            {
+                return *result;
+            }
         }
-        drop(table);
 
         let eval = self.evaluate(meta);
         let mut best_score = eval;
@@ -194,8 +195,10 @@ impl Bitboards {
             }
         }
 
-        let mut table = self.quiescence_table.lock().unwrap();
-        table.insert(*self.zobrist_hash, best_score);
+        self.quiescence_table
+            .lock()
+            .unwrap()
+            .insert(*self.zobrist_hash, best_score);
         best_score
     }
 
@@ -215,26 +218,17 @@ impl Bitboards {
 
         let mut best_move = (i32::MIN, None);
 
-        let mut priority_queue = if self
-            .move_list_table
-            .lock()
-            .unwrap()
-            .contains_key(&self.zobrist_hash)
+        let mut move_list_table = self.move_list_table.lock().unwrap();
+        let mut priority_queue = if let Some(priority_queue) =
+            move_list_table.get(&self.zobrist_hash)
         {
-            self.move_list_table
-                .lock()
-                .unwrap()
-                .get(&self.zobrist_hash)
-                .unwrap()
-                .clone()
+            priority_queue.clone()
         } else {
             let queue = self.all_legal_plys_by_color::<BinaryHeap<Ply>>(meta.last_ply_by().next());
-            self.move_list_table
-                .lock()
-                .unwrap()
-                .insert(*self.zobrist_hash, queue.clone());
+            move_list_table.insert(*self.zobrist_hash, queue.clone());
             queue
         };
+        drop(move_list_table);
 
         // PV following
         if meta.follow_pv {

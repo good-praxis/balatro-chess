@@ -202,17 +202,18 @@ impl Bitboards {
             .update_hash_bitboard(self.zobrist_hash, ply);
 
         // update visited positions
-        let count = *self
-            .visited_positions
-            .lock()
-            .unwrap()
-            .entry(*self.zobrist_hash)
-            .or_insert(0)
-            + 1;
+        let mut check_cache = false;
         self.visited_positions
             .lock()
             .unwrap()
-            .insert(*self.zobrist_hash, count);
+            .entry(*self.zobrist_hash)
+            .and_modify(|i| {
+                // Position already visted, checking cache
+                check_cache = true;
+                *i += 1
+            })
+            .or_insert(1);
+        self.check_cache = check_cache;
     }
 
     pub fn unmake_ply(&mut self, ply: &Ply, previous_ply: Option<&Ply>) {
@@ -254,18 +255,14 @@ impl Bitboards {
         }
 
         // update visited positions
-        let count = *self
-            .visited_positions
-            .lock()
-            .unwrap()
-            .entry(*self.zobrist_hash)
-            .or_insert(0)
-            - 1;
-
         self.visited_positions
             .lock()
             .unwrap()
-            .insert(*self.zobrist_hash, count);
+            .entry(*self.zobrist_hash)
+            .and_modify(|i| *i -= 1);
+
+        // returning to a previous position, so we can check cache
+        self.check_cache = true;
 
         // update hash
         self.zobrist_hash = self

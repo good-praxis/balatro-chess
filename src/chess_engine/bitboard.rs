@@ -150,11 +150,11 @@ pub struct Bitboards {
     // Search-related lookup tables
     /// if false we don't need to lock the mutex
     pub check_cache: bool,
-    pub quiescence_table: Arc<Mutex<HashMap<u32, i32, BuildHasherDefault<FnvHasher64>>>>,
-    pub pv_table: Arc<Mutex<HashMap<u32, Ply, BuildHasherDefault<FnvHasher64>>>>,
-    pub evaluation_table: Arc<Mutex<HashMap<u32, i32, BuildHasherDefault<FnvHasher64>>>>,
-    pub en_prise_table:
-        Arc<Mutex<HashMap<u32, (PieceColor, Bitboard), BuildHasherDefault<FnvHasher64>>>>,
+    /// Storing
+    pub quiescence_table: Arc<Mutex<HashMap<(u32, u16, u8), i32, BuildHasherDefault<FnvHasher64>>>>,
+    pub pv_table: Arc<Mutex<HashMap<(u32, u16), Ply, BuildHasherDefault<FnvHasher64>>>>,
+    //pub evaluation_table: Arc<Mutex<HashMap<u32, i32, BuildHasherDefault<FnvHasher64>>>>,
+    pub en_prise_table: Arc<Mutex<HashMap<(u32, u8), Bitboard, BuildHasherDefault<FnvHasher64>>>>,
 }
 
 impl PartialEq for Bitboards {
@@ -308,10 +308,8 @@ impl Bitboards {
     ///
     pub fn en_prise_by_color(&self, color: PieceColor) -> Bitboard {
         let mut en_prise_table = self.en_prise_table.lock().unwrap();
-        if let Some((cache_color, en_prise)) = en_prise_table.get(&self.zobrist_hash) {
-            if color == *cache_color {
-                return *en_prise;
-            }
+        if let Some(en_prise) = en_prise_table.get(&(*self.zobrist_hash, color as u8)) {
+            return *en_prise;
         }
 
         let mut board = Bitboard(0);
@@ -343,7 +341,7 @@ impl Bitboards {
                 }
             }
         }
-        en_prise_table.insert(*self.zobrist_hash, (color, board));
+        en_prise_table.insert((*self.zobrist_hash, color as u8), board);
         board
     }
 

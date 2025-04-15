@@ -1,3 +1,4 @@
+use rand::{Rng, rng};
 use strum::IntoEnumIterator;
 
 use crate::chess_engine::{
@@ -39,8 +40,10 @@ impl Default for Weights {
 }
 
 /// Metadata stuct for search
-#[derive(Default, Debug)]
+#[derive(Debug, Default)]
 pub struct SearchMeta {
+    ///identifier
+    id: u16,
     current_tree: Vec<Ply>,
     nodes_visited: u64,
     /// Index: WeightMap
@@ -50,10 +53,17 @@ pub struct SearchMeta {
     score_pv: bool,
 }
 impl SearchMeta {
+    fn new() -> Self {
+        Self {
+            id: rng().random::<u16>(),
+            ..Default::default()
+        }
+    }
+
     fn with_weights(weights: Weights) -> Self {
         Self {
             weights,
-            ..Default::default()
+            ..Self::new()
         }
     }
 
@@ -71,16 +81,16 @@ impl SearchMeta {
 
 impl Bitboards {
     pub fn evaluate(&self, meta: &SearchMeta) -> i32 {
-        if self.check_cache {
-            if let Some(eval) = self
-                .evaluation_table
-                .lock()
-                .unwrap()
-                .get(&self.zobrist_hash)
-            {
-                return *eval;
-            }
-        }
+        // if self.check_cache {
+        //     if let Some(eval) = self
+        //         .evaluation_table
+        //         .lock()
+        //         .unwrap()
+        //         .get(&self.zobrist_hash)
+        //     {
+        //         return *eval;
+        //     }
+        // }
 
         // TODO: reweight pawn startegic positions
         // TODO: Add strategic weight of pawns
@@ -141,22 +151,21 @@ impl Bitboards {
         let score = (material_score + pawn_score + (meta.weights.movement * move_score))
             * meta.last_ply_by().next().score_sign();
 
-        self.evaluation_table
-            .lock()
-            .unwrap()
-            .insert(*self.zobrist_hash, score);
+        // self.evaluation_table
+        //     .lock()
+        //     .unwrap()
+        //     .insert(*self.zobrist_hash, score);
         score
     }
 
     fn quiescence_search(&mut self, meta: &mut SearchMeta, mut alpha: i32, beta: i32) -> i32 {
         // Check cached results
         if self.check_cache {
-            if let Some(result) = self
-                .quiescence_table
-                .lock()
-                .unwrap()
-                .get(&self.zobrist_hash)
-            {
+            if let Some(result) = self.quiescence_table.lock().unwrap().get(&(
+                *self.zobrist_hash,
+                meta.id,
+                meta.last_ply_by() as u8,
+            )) {
                 return *result;
             }
         }
@@ -195,10 +204,10 @@ impl Bitboards {
             }
         }
 
-        self.quiescence_table
-            .lock()
-            .unwrap()
-            .insert(*self.zobrist_hash, best_score);
+        self.quiescence_table.lock().unwrap().insert(
+            (*self.zobrist_hash, meta.id, meta.last_ply_by() as u8),
+            best_score,
+        );
         best_score
     }
 
@@ -224,7 +233,12 @@ impl Bitboards {
         // PV following
         if meta.follow_pv {
             meta.follow_pv = false;
-            if let Some(&pv) = self.pv_table.lock().unwrap().get(&self.zobrist_hash) {
+            if let Some(&pv) = self
+                .pv_table
+                .lock()
+                .unwrap()
+                .get(&(*self.zobrist_hash, meta.id))
+            {
                 meta.follow_pv = true;
                 priority_queue.push(pv);
             }
@@ -258,7 +272,10 @@ impl Bitboards {
         }
         if let Some(mut pv) = best_move.1 {
             pv.pv_move = true;
-            self.pv_table.lock().unwrap().insert(*self.zobrist_hash, pv);
+            self.pv_table
+                .lock()
+                .unwrap()
+                .insert((*self.zobrist_hash, meta.id), pv);
         }
 
         best_move

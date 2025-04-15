@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use move_gen::ply::{captures_only, legality_filter};
 use simplehash::FnvHasher64;
 use std::{
-    collections::{BinaryHeap, HashMap},
+    collections::HashMap,
     fmt::Display,
     hash::BuildHasherDefault,
     sync::{Arc, Mutex},
@@ -540,8 +540,6 @@ mod tests {
 
     #[test]
     fn expected_piece_counts_default() {
-        use PieceColor::*;
-        use PieceType::*;
         let game = Game::default();
         let bb = game.boards.boards;
         assert_eq!(bb[bitboard_idx(WHITE_KING)].count_ones(), 1);
@@ -563,8 +561,6 @@ mod tests {
 
     #[test]
     fn expected_piece_list_default() {
-        use PieceColor::*;
-        use PieceType::*;
         let game = Game::default();
         let p = game.boards.piece_list;
         assert_eq!(p[bitboard_idx(WHITE_KING)].len(), 1);

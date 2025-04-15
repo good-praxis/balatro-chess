@@ -147,7 +147,7 @@ impl Bitboards {
         self.evaluation_table
             .lock()
             .unwrap()
-            .insert(self.zobrist_hash, score);
+            .insert(*self.zobrist_hash, score);
         score
     }
 
@@ -195,7 +195,7 @@ impl Bitboards {
         }
 
         let mut table = self.quiescence_table.lock().unwrap();
-        table.insert(self.zobrist_hash, best_score);
+        table.insert(*self.zobrist_hash, best_score);
         best_score
     }
 
@@ -232,7 +232,7 @@ impl Bitboards {
             self.move_list_table
                 .lock()
                 .unwrap()
-                .insert(self.zobrist_hash, queue.clone());
+                .insert(*self.zobrist_hash, queue.clone());
             queue
         };
 
@@ -273,7 +273,7 @@ impl Bitboards {
         }
         if let Some(mut pv) = best_move.1 {
             pv.pv_move = true;
-            self.pv_table.lock().unwrap().insert(self.zobrist_hash, pv);
+            self.pv_table.lock().unwrap().insert(*self.zobrist_hash, pv);
         }
 
         best_move

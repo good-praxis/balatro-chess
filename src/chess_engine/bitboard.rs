@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 use move_gen::ply::{captures_only, legality_filter};
+use simplehash::FnvHasher64;
 use std::{
     collections::{BinaryHeap, HashMap},
     fmt::Display,
+    hash::BuildHasherDefault,
     sync::{Arc, Mutex},
 };
 use strum::IntoEnumIterator;
@@ -141,14 +143,15 @@ pub struct Bitboards {
     pub zobrist_table: Arc<Zobrist>,
     pub zobrist_hash: ZobristHash,
 
-    // thricefold repetition protection
-    pub visited_positions: Arc<Mutex<HashMap<ZobristHash, isize>>>,
+    //`FnvHasher64` has proven to be the most efficient in testing for these HashMaps
+    /// thricefold repetition protection.
+    pub visited_positions: Arc<Mutex<HashMap<u32, isize, BuildHasherDefault<FnvHasher64>>>>,
 
     // Search-related lookup tables
-    pub quiescence_table: Arc<Mutex<HashMap<ZobristHash, i32>>>,
-    pub pv_table: Arc<Mutex<HashMap<ZobristHash, Ply>>>,
-    pub evaluation_table: Arc<Mutex<HashMap<ZobristHash, i32>>>,
-    pub move_list_table: Arc<Mutex<HashMap<ZobristHash, BinaryHeap<Ply>>>>,
+    pub quiescence_table: Arc<Mutex<HashMap<u32, i32, BuildHasherDefault<FnvHasher64>>>>,
+    pub pv_table: Arc<Mutex<HashMap<u32, Ply, BuildHasherDefault<FnvHasher64>>>>,
+    pub evaluation_table: Arc<Mutex<HashMap<u32, i32, BuildHasherDefault<FnvHasher64>>>>,
+    pub move_list_table: Arc<Mutex<HashMap<u32, BinaryHeap<Ply>, BuildHasherDefault<FnvHasher64>>>>,
 }
 
 impl PartialEq for Bitboards {
@@ -244,7 +247,7 @@ impl Bitboards {
             .visited_positions
             .lock()
             .unwrap()
-            .insert(zobrist_hash, 1);
+            .insert(*zobrist_hash, 1);
         new_bitboards
     }
 

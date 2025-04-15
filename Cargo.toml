@@ -9,6 +9,7 @@ rand = "0.9.0"
 rand_chacha = "0.9.0"
 strum = "0.27.1"
 strum_macros = "0.27.1"
+simplehash = "0.1.3"
 
 [lints.clippy]
 type_complexity = "allow"

@@ -206,13 +206,13 @@ impl Bitboards {
             .visited_positions
             .lock()
             .unwrap()
-            .entry(self.zobrist_hash)
+            .entry(*self.zobrist_hash)
             .or_insert(0)
             + 1;
         self.visited_positions
             .lock()
             .unwrap()
-            .insert(self.zobrist_hash, count);
+            .insert(*self.zobrist_hash, count);
     }
 
     pub fn unmake_ply(&mut self, ply: &Ply, previous_ply: Option<&Ply>) {
@@ -258,14 +258,14 @@ impl Bitboards {
             .visited_positions
             .lock()
             .unwrap()
-            .entry(self.zobrist_hash)
+            .entry(*self.zobrist_hash)
             .or_insert(0)
             - 1;
 
         self.visited_positions
             .lock()
             .unwrap()
-            .insert(self.zobrist_hash, count);
+            .insert(*self.zobrist_hash, count);
 
         // update hash
         self.zobrist_hash = self

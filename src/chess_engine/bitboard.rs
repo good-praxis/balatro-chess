@@ -8,7 +8,7 @@ use std::{
 use strum::IntoEnumIterator;
 
 use super::{
-    pieces::{Piece, PieceColor, PieceType, PieceWithBitboard},
+    pieces::{PIECE_COMBO_COUNT, Piece, PieceColor, PieceType, PieceWithBitboard},
     zobrist::{Zobrist, ZobristHash},
 };
 
@@ -127,7 +127,7 @@ impl Bitboard {
 #[derive(Debug, Clone, Default)]
 pub struct Bitboards {
     /// index = PieceType + (PieceColor * amount of PieceType)
-    pub boards: Vec<Bitboard>,
+    pub boards: [Bitboard; PIECE_COMBO_COUNT],
     pub piece_list: Vec<Vec<BitIndex>>,
     /// constrains from board size, 1 = active tile;
     limits: Bitboard,
@@ -183,9 +183,8 @@ impl Display for Bitboards {
 
 impl Bitboards {
     pub fn from_str(input: &str) -> Self {
-        let bitboard_count = PieceType::iter().count() * PieceColor::iter().count();
-        let mut boards = vec![Bitboard(0u128); bitboard_count];
-        let mut piece_list = vec![vec![]; bitboard_count];
+        let mut boards = [Bitboard(0u128); PIECE_COMBO_COUNT];
+        let mut piece_list = vec![vec![]; PIECE_COMBO_COUNT];
         let mut limits = Bitboard(0u128);
         let mut idx = 0;
         let mut since_newline: u32 = 0;

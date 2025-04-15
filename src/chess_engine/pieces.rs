@@ -10,6 +10,7 @@ use strum_macros::EnumIter;
 
 pub const PIECE_TYPE_COUNT: usize = 6;
 pub const PIECE_COLOR_COUNT: usize = 2;
+pub const PIECE_COMBO_COUNT: usize = PIECE_TYPE_COUNT * PIECE_COLOR_COUNT;
 
 pub const WHITE_KING: Piece = Piece(PieceType::King, PieceColor::White);
 pub const BLACK_KING: Piece = Piece(PieceType::King, PieceColor::Black);

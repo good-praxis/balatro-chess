@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use move_gen::ply::{captures_only, legality_filter};
 use std::{
-    collections::HashMap,
+    collections::{BinaryHeap, HashMap},
     fmt::Display,
     sync::{Arc, Mutex},
 };
@@ -49,7 +49,7 @@ impl Display for BitIndex {
         // so that we can naturally grow the board 'downwards'. This lets us
         // omit counting the active rows; Which require a reference to the
         // limit board.
-        let rank = **self / 16;
+        let rank = **self / 16 + 1;
 
         f.write_fmt(format_args!("{}{}", file, rank))
     }
@@ -145,7 +145,10 @@ pub struct Bitboards {
     pub visited_positions: Arc<Mutex<HashMap<ZobristHash, isize>>>,
 
     // Search-related lookup tables
-    pub quiescence_table: Arc<Mutex<HashMap<(ZobristHash, PieceColor), i32>>>,
+    pub quiescence_table: Arc<Mutex<HashMap<ZobristHash, i32>>>,
+    pub pv_table: Arc<Mutex<HashMap<ZobristHash, Ply>>>,
+    pub evaluation_table: Arc<Mutex<HashMap<ZobristHash, i32>>>,
+    pub move_list_table: Arc<Mutex<HashMap<ZobristHash, BinaryHeap<Ply>>>>,
 }
 
 impl PartialEq for Bitboards {
@@ -157,10 +160,16 @@ impl PartialEq for Bitboards {
 impl Display for Bitboards {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mailbox = self.to_mailbox();
-        let mut board_str = String::new();
+        let mut board_str = " ".to_string();
+        for i in 0..self.limits.trailing_ones() {
+            board_str.push(('A' as u8 + i as u8) as char);
+        }
+
         for (i, piece) in mailbox.iter().enumerate() {
+            let rank = ('1' as u8 + (i as u32 / self.limits.trailing_ones()) as u8) as char;
             if i as u32 % self.limits.trailing_ones() == 0 {
                 board_str.push('\n');
+                board_str.push(rank);
             }
             if let Some(piece) = piece {
                 board_str.push(piece.to_char());

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 mod game;
-use game::Game;
+pub use game::Game;
 
 mod moves;
 mod pieces;
@@ -9,7 +9,7 @@ mod pieces;
 mod debug;
 use debug::ChessDebugPlugin;
 
-mod bitboard;
+pub mod bitboard;
 mod zobrist;
 
 pub struct ChessEnginePlugin;

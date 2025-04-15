@@ -14,6 +14,7 @@ pub struct Ply {
     pub capturing: Option<(Piece, BitIndex)>,
     pub also_move: Option<(Piece, BitIndex, BitIndex)>,
     pub en_passant_board: Option<Bitboard>,
+    pub pv_move: bool,
 }
 
 impl Display for Ply {
@@ -23,15 +24,23 @@ impl Display for Ply {
         let to = self.to.to_string();
         let mut capture = "".to_string();
         if let Some((captured, _)) = self.capturing {
-            capture.push_str(&format!("x{}", captured.to_char()));
+            capture.push_str(&format!(" x{}", captured.to_char()));
         }
 
-        write!(f, "{}{}{}{}", piece, from, to, capture)
+        // Non-standard representation, but fully detailed
+        write!(f, "{} {}{}{}", piece, from, to, capture)
     }
 }
 
 impl PartialOrd for Ply {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // PV first
+        match (self.pv_move, other.pv_move) {
+            (true, false) => return Some(Ordering::Greater),
+            (false, true) => return Some(Ordering::Less),
+            _ => (),
+        }
+
         // using MVV_LVA (Most Valuable Victim, Least Valuable Attacker)
         match (self.capturing, other.capturing) {
             (None, Some(_)) => return Some(Ordering::Less),
@@ -756,5 +765,30 @@ mod tests {
         bitboard.unmake_ply(&ply, None);
         let bitboard_idx = bitboard_idx(WHITE_PAWN);
         assert_eq!(bitboard.piece_list[bitboard_idx], vec![16.into()]);
+    }
+
+    #[test]
+    fn display_ply() {
+        let ply = Ply {
+            moving_piece: WHITE_PAWN,
+            from: 16.into(),
+            to: 0.into(),
+            ..Default::default()
+        };
+
+        assert_eq!(ply.to_string().as_str(), "p A2A1");
+    }
+
+    #[test]
+    fn display_capturing_ply() {
+        let ply = Ply {
+            moving_piece: BLACK_ROOK,
+            from: 31.into(),
+            to: 16.into(),
+            capturing: Some((WHITE_QUEEN, 0.into())),
+            ..Default::default()
+        };
+
+        assert_eq!(ply.to_string().as_str(), "R P2A2 xq");
     }
 }

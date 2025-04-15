@@ -11,6 +11,7 @@ use std::{collections::HashMap, ops::BitXorAssign};
 #[derive(Debug, Hash, PartialEq, Eq)]
 enum ZobristKey {
     Piece(Piece, u32),
+    ChangePlayer,
 }
 
 #[derive(Debug, Deref, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -43,6 +44,7 @@ impl Zobrist {
                 table.insert(ZobristKey::Piece(piece, i), rng.random::<u32>().into());
             }
         }
+        table.insert(ZobristKey::ChangePlayer, rng.random::<u32>().into());
 
         Self { table }
     }
@@ -85,6 +87,8 @@ impl Zobrist {
         if let Some(captured) = ply.capturing {
             hash ^= self.table[&ZobristKey::Piece(captured.0, *captured.1)];
         }
+        // Change player
+        hash ^= self.table[&ZobristKey::ChangePlayer];
 
         hash
     }

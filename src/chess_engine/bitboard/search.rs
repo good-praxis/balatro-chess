@@ -45,6 +45,9 @@ pub struct SearchMeta {
     nodes_visited: u64,
     /// Index: WeightMap
     weights: Weights,
+    // PV
+    follow_pv: bool,
+    score_pv: bool,
 }
 impl SearchMeta {
     fn with_weights(weights: Weights) -> Self {
@@ -68,6 +71,20 @@ impl SearchMeta {
 
 impl Bitboards {
     pub fn evaluate(&self, meta: &SearchMeta) -> i32 {
+        if self
+            .evaluation_table
+            .lock()
+            .unwrap()
+            .contains_key(&self.zobrist_hash)
+        {
+            return *self
+                .evaluation_table
+                .lock()
+                .unwrap()
+                .get(&self.zobrist_hash)
+                .unwrap();
+        }
+
         // TODO: reweight pawn startegic positions
         // TODO: Add strategic weight of pawns
 
@@ -124,15 +141,21 @@ impl Bitboards {
                 .all_legal_plys_by_color::<Vec<Ply>>(PieceColor::Black)
                 .len() as i32;
 
-        (material_score + pawn_score + (meta.weights.movement * move_score))
-            * meta.last_ply_by().next().score_sign()
+        let score = (material_score + pawn_score + (meta.weights.movement * move_score))
+            * meta.last_ply_by().next().score_sign();
+
+        self.evaluation_table
+            .lock()
+            .unwrap()
+            .insert(self.zobrist_hash, score);
+        score
     }
 
     fn quiescence_search(&mut self, meta: &mut SearchMeta, mut alpha: i32, beta: i32) -> i32 {
         // Check cached results
         let table = self.quiescence_table.lock().unwrap();
-        if table.contains_key(&(self.zobrist_hash, meta.last_ply_by())) {
-            let result = table[&(self.zobrist_hash, meta.last_ply_by())];
+        if table.contains_key(&self.zobrist_hash) {
+            let result = table[&self.zobrist_hash];
             return result;
         }
         drop(table);
@@ -172,7 +195,7 @@ impl Bitboards {
         }
 
         let mut table = self.quiescence_table.lock().unwrap();
-        table.insert((self.zobrist_hash, meta.last_ply_by()), best_score);
+        table.insert(self.zobrist_hash, best_score);
         best_score
     }
 
@@ -191,8 +214,38 @@ impl Bitboards {
         };
 
         let mut best_move = (i32::MIN, None);
-        for this_move in self.all_legal_plys_by_color::<BinaryHeap<Ply>>(meta.last_ply_by().next())
+
+        let mut priority_queue = if self
+            .move_list_table
+            .lock()
+            .unwrap()
+            .contains_key(&self.zobrist_hash)
         {
+            self.move_list_table
+                .lock()
+                .unwrap()
+                .get(&self.zobrist_hash)
+                .unwrap()
+                .clone()
+        } else {
+            let queue = self.all_legal_plys_by_color::<BinaryHeap<Ply>>(meta.last_ply_by().next());
+            self.move_list_table
+                .lock()
+                .unwrap()
+                .insert(self.zobrist_hash, queue.clone());
+            queue
+        };
+
+        // PV following
+        if meta.follow_pv {
+            meta.follow_pv = false;
+            if let Some(&pv) = self.pv_table.lock().unwrap().get(&self.zobrist_hash) {
+                meta.follow_pv = true;
+                priority_queue.push(pv);
+            }
+        }
+
+        for this_move in priority_queue {
             meta.nodes_visited += 1;
             self.make_ply(&this_move);
             meta.current_tree.push(this_move);
@@ -218,6 +271,11 @@ impl Bitboards {
                 return best_move;
             }
         }
+        if let Some(mut pv) = best_move.1 {
+            pv.pv_move = true;
+            self.pv_table.lock().unwrap().insert(self.zobrist_hash, pv);
+        }
+
         best_move
     }
 
@@ -233,8 +291,18 @@ impl Bitboards {
         if last_ply.is_some() {
             meta.current_tree.push(last_ply.unwrap());
         }
-        let result = self.alpha_beta(&mut meta, i32::MIN, i32::MAX, depth);
+        let result = self.iterative_deepening(&mut meta, depth);
         (result.0, result.1, meta.nodes_visited)
+    }
+
+    pub fn iterative_deepening(&mut self, meta: &mut SearchMeta, depth: i8) -> (i32, Option<Ply>) {
+        let mut result = (0, None);
+        for i in 1..=depth {
+            meta.follow_pv = true;
+            result = self.alpha_beta(meta, i32::MIN, i32::MAX, i);
+        }
+
+        result
     }
 }
 
@@ -367,5 +435,18 @@ mod tests {
         boards.make_ply(&ply.unwrap());
         let result = boards.search_next_ply(ply, 3, Weights::default());
         assert!(result.1.is_none());
+    }
+
+    #[test]
+    fn iterative_deepening_pv_trim_nodes() {
+        let mut boards = Game::default().boards;
+
+        let mut iterative_meta = SearchMeta::default();
+        let iterative = boards.iterative_deepening(&mut iterative_meta, 5);
+
+        let mut exhaustive_meta = SearchMeta::default();
+        let exhaustive = boards.alpha_beta(&mut exhaustive_meta, MIN, MAX, 5);
+
+        assert_eq!(iterative_meta.nodes_visited, exhaustive_meta.nodes_visited);
     }
 }

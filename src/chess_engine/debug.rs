@@ -10,13 +10,17 @@ use super::{
 #[derive(Resource, Debug, Clone, Copy, Default)]
 struct LastPly(Option<Ply>);
 
+#[derive(Resource, Debug, Clone, Default, Deref)]
+struct NextBoard(Option<(String, String)>);
+
 pub struct ChessDebugPlugin;
 impl Plugin for ChessDebugPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_debug)
-            .add_systems(Update, print_and_play)
+            .add_systems(Update, (find_next_ply, print_new_board))
             .init_resource::<DebugFlags>()
-            .init_resource::<LastPly>();
+            .init_resource::<LastPly>()
+            .init_resource::<NextBoard>();
     }
 }
 
@@ -28,10 +32,14 @@ struct DebugTextInfo;
 #[derive(Resource, Debug, Clone)]
 struct DebugFlags {
     running: bool,
+    waiting_to_print: bool,
 }
 impl Default for DebugFlags {
     fn default() -> Self {
-        Self { running: true }
+        Self {
+            running: true,
+            waiting_to_print: true,
+        }
     }
 }
 
@@ -73,16 +81,34 @@ fn setup_debug(mut commands: Commands, assets: Res<AssetServer>, board: Res<Game
     ));
 }
 
-fn print_and_play(
+fn print_new_board(
     mut board_text_query: Query<&mut Text, (With<DebugTextBoard>, Without<DebugTextInfo>)>,
     mut info_text_query: Query<&mut Text, (With<DebugTextInfo>, Without<DebugTextBoard>)>,
+    mut next_board: ResMut<NextBoard>,
+    mut debug_flags: ResMut<DebugFlags>,
+    input: Res<ButtonInput<KeyCode>>,
+) {
+    if input.just_pressed(KeyCode::Enter) {
+        debug_flags.waiting_to_print = true;
+    }
+
+    if debug_flags.waiting_to_print {
+        if let NextBoard(Some((board, info))) = next_board.clone() {
+            *next_board = NextBoard(None);
+            board_text_query.single_mut().0 = board;
+            info_text_query.single_mut().0 = info;
+            debug_flags.waiting_to_print = false;
+        }
+    }
+}
+
+fn find_next_ply(
     mut game: ResMut<Game>,
     mut last_ply: ResMut<LastPly>,
     mut debug_flags: ResMut<DebugFlags>,
+    mut next_board: ResMut<NextBoard>,
 ) {
-    if debug_flags.running {
-        std::thread::sleep(Duration::from_secs_f32(0.5));
-
+    if debug_flags.running && next_board.is_none() {
         let start = Instant::now();
         ////////////////////////////////////////////////////////////////////
         // Mailbox impl
@@ -106,23 +132,27 @@ fn print_and_play(
             isolated_pawn: -5,
             movement: 1,
         };
-        let result = game.boards.search_next_ply(last_ply.0, 3, weights);
+        let result = game.boards.search_next_ply(last_ply.0, 5, weights);
         if let Some(ply) = result.1 {
             game.boards.make_ply(&ply);
             last_ply.0 = Some(ply);
             let work_done = Instant::now().duration_since(start);
 
-            board_text_query.single_mut().0 = game.boards.to_string();
-            info_text_query.single_mut().0 = format!(
-                "\nTime:\n{}\n\n Nodes visited:\n{}",
-                work_done.as_millis(),
-                result.2
-            );
+            *next_board = NextBoard(Some((
+                game.boards.to_string(),
+                format!(
+                    "{}\nTime:\n{}\n\n Nodes visited:\n{}",
+                    ply.to_string(),
+                    work_done.as_millis(),
+                    result.2
+                ),
+            )));
+
         ////////////////////////////////////////////////////////////////////
         } else {
-            let mut string = game.to_string();
-            string.push_str(&format!("\n{:?} lost!", game.next_move_by));
-            board_text_query.single_mut().0 = string;
+            let board = game.to_string();
+            let info = format!("\n{:?} lost!", game.next_move_by);
+            *next_board = NextBoard(Some((board, info)));
             debug_flags.running = false;
         }
     }

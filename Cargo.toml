@@ -14,9 +14,6 @@ simplehash = "0.1.3"
 [lints.clippy]
 type_complexity = "allow"
 
-[profile.release]
-debug = true
-
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 

@@ -218,17 +218,8 @@ impl Bitboards {
 
         let mut best_move = (i32::MIN, None);
 
-        let mut move_list_table = self.move_list_table.lock().unwrap();
-        let mut priority_queue = if let Some(priority_queue) =
-            move_list_table.get(&self.zobrist_hash)
-        {
-            priority_queue.clone()
-        } else {
-            let queue = self.all_legal_plys_by_color::<BinaryHeap<Ply>>(meta.last_ply_by().next());
-            move_list_table.insert(*self.zobrist_hash, queue.clone());
-            queue
-        };
-        drop(move_list_table);
+        let mut priority_queue =
+            self.all_legal_plys_by_color::<BinaryHeap<Ply>>(meta.last_ply_by().next());
 
         // PV following
         if meta.follow_pv {

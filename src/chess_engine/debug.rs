@@ -132,7 +132,7 @@ fn find_next_ply(
             isolated_pawn: -5,
             movement: 1,
         };
-        let result = game.boards.search_next_ply(last_ply.0, 5, weights);
+        let result = game.boards.search_next_ply(last_ply.0, 3, weights);
         if let Some(ply) = result.1 {
             game.boards.make_ply(&ply);
             last_ply.0 = Some(ply);

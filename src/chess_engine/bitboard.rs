@@ -153,7 +153,6 @@ pub struct Bitboards {
     pub quiescence_table: Arc<Mutex<HashMap<u32, i32, BuildHasherDefault<FnvHasher64>>>>,
     pub pv_table: Arc<Mutex<HashMap<u32, Ply, BuildHasherDefault<FnvHasher64>>>>,
     pub evaluation_table: Arc<Mutex<HashMap<u32, i32, BuildHasherDefault<FnvHasher64>>>>,
-    pub move_list_table: Arc<Mutex<HashMap<u32, BinaryHeap<Ply>, BuildHasherDefault<FnvHasher64>>>>,
     pub en_prise_table:
         Arc<Mutex<HashMap<u32, (PieceColor, Bitboard), BuildHasherDefault<FnvHasher64>>>>,
 }

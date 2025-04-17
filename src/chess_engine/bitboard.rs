@@ -10,7 +10,9 @@ use std::{
 use strum::IntoEnumIterator;
 
 use super::{
-    pieces::{PIECE_COMBO_COUNT, Piece, PieceColor, PieceType, PieceWithBitboard},
+    pieces::{
+        PIECE_COMBO_COUNT, PIECE_TYPE_COUNT, Piece, PieceColor, PieceType, PieceWithBitboard,
+    },
     zobrist::{Zobrist, ZobristHash},
 };
 
@@ -493,8 +495,9 @@ impl Bitboards {
 }
 
 /// Bitboard index of a certain PieceType and PieceColor combo
+#[inline]
 pub fn bitboard_idx(piece: Piece) -> usize {
-    piece.0 as usize + (piece.1 as usize * PieceType::iter().count())
+    piece.0 as usize + (piece.1 as usize * PIECE_TYPE_COUNT)
 }
 
 #[cfg(test)]

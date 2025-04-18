@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use ethnum::{U256, u256};
 use move_gen::ply::{captures_only, legality_filter};
 use simplehash::FnvHasher64;
 use std::{
@@ -60,7 +61,7 @@ impl Display for BitIndex {
 }
 
 #[derive(Clone, Debug, Default, Deref, DerefMut, PartialEq, Eq, Copy)]
-pub struct Bitboard(u128);
+pub struct Bitboard(u256);
 
 impl Display for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -84,13 +85,13 @@ impl Display for Bitboard {
 impl From<BitIndex> for Bitboard {
     #[inline]
     fn from(value: BitIndex) -> Self {
-        Self(1 << *value)
+        Self(u256::from_words(0, 1) << *value)
     }
 }
 
-impl From<u128> for Bitboard {
+impl From<u256> for Bitboard {
     #[inline]
-    fn from(value: u128) -> Self {
+    fn from(value: u256) -> Self {
         Self(value)
     }
 }
@@ -115,9 +116,9 @@ impl Bitboard {
 
     /// Reduce bitboard to a column-wise representation by or-ing 16-bit words
     pub fn to_column_representation(&self) -> u16 {
-        let bytes = self.to_le_bytes();
-        let mut words = [0u16; 8];
-        for i in 0..8 {
+        let bytes = self.to_be_bytes();
+        let mut words = [0u16; 16];
+        for i in 0..16 {
             let offset = i * 2;
             words[i] = bytes[offset] as u16;
             words[i] <<= 8;
@@ -191,9 +192,9 @@ impl Display for Bitboards {
 
 impl Bitboards {
     pub fn from_str(input: &str) -> Self {
-        let mut boards = [Bitboard(0u128); PIECE_COMBO_COUNT];
+        let mut boards = [Bitboard(u256::ZERO); PIECE_COMBO_COUNT];
         let mut piece_list = vec![vec![]; PIECE_COMBO_COUNT];
-        let mut limits = Bitboard(0u128);
+        let mut limits = Bitboard(u256::ZERO);
         let mut idx = 0;
         let mut since_newline: u32 = 0;
         for char in input.trim().chars() {
@@ -231,7 +232,7 @@ impl Bitboards {
             idx += 1;
         }
 
-        let unmoved_pieces = boards.iter().fold(Bitboard(0), |acc, e| acc | *e);
+        let unmoved_pieces = boards.iter().fold(Bitboard(u256::ZERO), |acc, e| acc | *e);
 
         let zobrist_table = Arc::new(Zobrist::new());
 
@@ -282,11 +283,13 @@ impl Bitboards {
     }
 
     pub fn all_pieces(&self) -> Bitboard {
-        self.boards.iter().fold(Bitboard(0), |acc, e| acc | *e)
+        self.boards
+            .iter()
+            .fold(Bitboard(u256::ZERO), |acc, e| acc | *e)
     }
 
     pub fn all_pieces_by_color(&self, color: PieceColor) -> Bitboard {
-        let mut board = Bitboard(0);
+        let mut board = Bitboard(u256::ZERO);
         for piece in Piece::iter_color(color) {
             board |= self.boards[bitboard_idx(piece)];
         }
@@ -314,7 +317,7 @@ impl Bitboards {
             return *en_prise;
         }
 
-        let mut board = Bitboard(0);
+        let mut board = Bitboard(u256::ZERO);
         for piece in Piece::iter_color(color) {
             for idx in self.piece_list[bitboard_idx(piece)].clone() {
                 board |= match piece.0 {
@@ -507,7 +510,7 @@ mod tests {
 
     #[test]
     fn bitboard_getter() {
-        let bitboard = Bitboard(0b01);
+        let bitboard = Bitboard(0b01u32.into());
 
         assert!(bitboard.get(&0));
         assert!(!bitboard.get(&1));
@@ -515,7 +518,7 @@ mod tests {
 
     #[test]
     fn bitboard_setter() {
-        let mut bitboard = Bitboard(0b01);
+        let mut bitboard = Bitboard(0b01u32.into());
         bitboard.set(0.into(), false);
         bitboard.set(1.into(), true);
 
@@ -598,18 +601,18 @@ mod tests {
         let black_pieces = bitboards.all_pieces_by_color(PieceColor::Black);
         assert_eq!(white_pieces.count_ones(), 16);
         assert_eq!(black_pieces.count_ones(), 16);
-        assert_eq!(white_pieces & black_pieces, 0.into());
+        assert_eq!(white_pieces & black_pieces, Bitboard(0u32.into()));
     }
 
     #[test]
     fn bitboard_from_bit_idx() {
         let bitboard: Bitboard = BitIndex(3).into();
-        assert_eq!(bitboard, Bitboard(8));
+        assert_eq!(bitboard, Bitboard(8u32.into()));
     }
 
     #[test]
     fn bitboard_to_bit_idx() {
-        let mut bitboard = Bitboard(0);
+        let mut bitboard = Bitboard(0u32.into());
         bitboard.set(30.into(), true);
         assert_eq!(bitboard.to_bit_idx(), 30.into());
     }
@@ -718,9 +721,28 @@ mod tests {
         000p0000
         "#,
         );
-        let expect: u16 = 0b00111101 << 8;
+        let expect: u16 = 0b00111101;
         let pawns = boards.boards[bitboard_idx(WHITE_PAWN)];
         let column_rep = pawns.to_column_representation();
+        assert_eq!(column_rep, expect);
+    }
+
+    #[test]
+    fn test_column_representation_full_width() {
+        let boards = Bitboards::from_str(
+            r#"
+        00000p000000p000
+        00p000000000000p
+        0000p00000000000
+        p000000000000000
+        0000000000000000
+        000p000000000000
+        "#,
+        );
+        let expect: u16 = 0b1001000000111101;
+        let pawns = boards.boards[bitboard_idx(WHITE_PAWN)];
+        let column_rep = pawns.to_column_representation();
+        dbg!(format!("{:b}\n{:b}", column_rep, expect));
         assert_eq!(column_rep, expect);
     }
 }

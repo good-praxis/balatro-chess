@@ -150,122 +150,122 @@ mod tests {
 
     #[test]
     fn bit_and() {
-        let b1 = Bitboard(0b0011);
-        let b2 = Bitboard(0b0101);
+        let b1 = Bitboard(0b0011u32.into());
+        let b2 = Bitboard(0b0101u32.into());
         let res = b1 & b2;
-        assert_eq!(res, Bitboard(0b0001));
+        assert_eq!(res, Bitboard(0b0001u32.into()));
     }
 
     #[test]
     fn bit_and_assign() {
-        let mut b1 = Bitboard(0b0011);
-        let b2 = Bitboard(0b0101);
+        let mut b1 = Bitboard(0b0011u32.into());
+        let b2 = Bitboard(0b0101u32.into());
         b1 &= b2;
-        assert_eq!(b1, Bitboard(0b0001));
+        assert_eq!(b1, Bitboard(0b0001u32.into()));
     }
 
     #[test]
     fn bit_or() {
-        let b1 = Bitboard(0b0011);
-        let b2 = Bitboard(0b0101);
+        let b1 = Bitboard(0b0011u32.into());
+        let b2 = Bitboard(0b0101u32.into());
         let res = b1 | b2;
-        assert_eq!(res, Bitboard(0b0111));
+        assert_eq!(res, Bitboard(0b0111u32.into()));
     }
 
     #[test]
     fn bit_or_assign() {
-        let mut b1 = Bitboard(0b0011);
-        let b2 = Bitboard(0b0101);
+        let mut b1 = Bitboard(0b0011u32.into());
+        let b2 = Bitboard(0b0101u32.into());
         b1 |= b2;
-        assert_eq!(b1, Bitboard(0b0111));
+        assert_eq!(b1, Bitboard(0b0111u32.into()));
     }
 
     #[test]
     fn bit_xor() {
-        let b1 = Bitboard(0b0011);
-        let b2 = Bitboard(0b0101);
+        let b1 = Bitboard(0b0011u32.into());
+        let b2 = Bitboard(0b0101u32.into());
         let res = b1 ^ b2;
-        assert_eq!(res, Bitboard(0b0110));
+        assert_eq!(res, Bitboard(0b0110u32.into()));
     }
 
     #[test]
     fn bit_xor_assign() {
-        let mut b1 = Bitboard(0b0011);
-        let b2 = Bitboard(0b0101);
+        let mut b1 = Bitboard(0b0011u32.into());
+        let b2 = Bitboard(0b0101u32.into());
         b1 ^= b2;
-        assert_eq!(b1, Bitboard(0b0110));
+        assert_eq!(b1, Bitboard(0b0110u32.into()));
     }
 
     #[test]
     fn bit_and_u128() {
-        let b1 = Bitboard(0b0011);
+        let b1 = Bitboard(0b0011u32.into());
         let b2 = 0b0101;
         let res = b1 & b2;
-        assert_eq!(res, Bitboard(0b0001));
+        assert_eq!(res, Bitboard(0b0001u32.into()));
     }
 
     #[test]
     fn bit_and_assign_u128() {
-        let mut b1 = Bitboard(0b0011);
+        let mut b1 = Bitboard(0b0011u32.into());
         let b2 = 0b0101;
         b1 &= b2;
-        assert_eq!(b1, Bitboard(0b0001));
+        assert_eq!(b1, Bitboard(0b0001u32.into()));
     }
 
     #[test]
     fn bit_or_u128() {
-        let b1 = Bitboard(0b0011);
+        let b1 = Bitboard(0b0011u32.into());
         let b2 = 0b0101;
         let res = b1 | b2;
-        assert_eq!(res, Bitboard(0b0111));
+        assert_eq!(res, Bitboard(0b0111u32.into()));
     }
 
     #[test]
     fn bit_or_assign_u128() {
-        let mut b1 = Bitboard(0b0011);
+        let mut b1 = Bitboard(0b0011u32.into());
         let b2 = 0b0101;
         b1 |= b2;
-        assert_eq!(b1, Bitboard(0b0111));
+        assert_eq!(b1, Bitboard(0b0111u32.into()));
     }
 
     #[test]
     fn bit_xor_u128() {
-        let b1 = Bitboard(0b0011);
+        let b1 = Bitboard(0b0011u32.into());
         let b2 = 0b0101;
         let res = b1 ^ b2;
-        assert_eq!(res, Bitboard(0b0110));
+        assert_eq!(res, Bitboard(0b0110u32.into()));
     }
 
     #[test]
     fn bit_xor_assign_u128() {
-        let mut b1 = Bitboard(0b0011);
+        let mut b1 = Bitboard(0b0011u32.into());
         let b2 = 0b0101;
         b1 ^= b2;
-        assert_eq!(b1, Bitboard(0b0110));
+        assert_eq!(b1, Bitboard(0b0110u32.into()));
     }
 
     #[test]
     fn bit_shl() {
-        let b1 = Bitboard(0b010);
+        let b1 = Bitboard(0b010u32.into());
         let res = b1 << 1;
-        assert_eq!(res, Bitboard(0b100));
+        assert_eq!(res, Bitboard(0b100u32.into()));
     }
     #[test]
     fn bit_shl_assign() {
-        let mut b1 = Bitboard(0b010);
+        let mut b1 = Bitboard(0b010u32.into());
         b1 <<= 1;
-        assert_eq!(b1, Bitboard(0b100));
+        assert_eq!(b1, Bitboard(0b100u32.into()));
     }
     #[test]
     fn bit_shr() {
-        let b1 = Bitboard(0b010);
+        let b1 = Bitboard(0b010u32.into());
         let res = b1 >> 1;
-        assert_eq!(res, Bitboard(0b001));
+        assert_eq!(res, Bitboard(0b001u32.into()));
     }
     #[test]
     fn bit_shr_assign() {
-        let mut b1 = Bitboard(0b010);
+        let mut b1 = Bitboard(0b010u32.into());
         b1 >>= 1;
-        assert_eq!(b1, Bitboard(0b001));
+        assert_eq!(b1, Bitboard(0b001u32.into()));
     }
 }

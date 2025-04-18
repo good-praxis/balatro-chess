@@ -1,3 +1,5 @@
+use ethnum::u256;
+
 use super::Bitboard;
 
 pub mod bishop;
@@ -91,7 +93,7 @@ impl Bitboard {
 
     // fill-in-direction until running into a `blocked` bit (exclusive) or `capturable` bit (inclusive)
     fn fill_dir(&self, dir: fn(&Self) -> Self, blocked: &Self, capturable: &Self) -> Self {
-        let mut board = Bitboard(0);
+        let mut board = Bitboard(u256::ZERO);
         let mut current = dir(self);
         while *current != 0 && *current & **blocked == 0 {
             board |= current;
@@ -113,7 +115,7 @@ impl Bitboard {
         dirs.iter()
             .map(|dir| dir(self, blocked, capturable))
             .reduce(|acc, e| acc | e)
-            .unwrap_or(Self(0))
+            .unwrap_or(Self(u256::ZERO))
     }
 
     fn fill_we(&self, blocked: &Self, capturable: &Self) -> Self {

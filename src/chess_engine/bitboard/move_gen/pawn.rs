@@ -1,3 +1,5 @@
+use ethnum::u256;
+
 use crate::chess_engine::{
     bitboard::Bitboard,
     pieces::{Piece, PieceColor, PieceType, PieceWithBitboard},
@@ -74,7 +76,7 @@ impl Bitboard {
 
     /// Mask of threatened positions
     pub fn pawn_en_prise_mask(&self, blocked: &Self, color: PieceColor) -> Self {
-        let mut mask = Bitboard(0);
+        let mut mask = Bitboard(u256::ZERO);
         let normal = pawn_dir(color)(self);
         // Normal captures
         let capture_one = normal.shift_we();

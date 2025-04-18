@@ -1,3 +1,5 @@
+use ethnum::u256;
+
 use crate::chess_engine::{
     bitboard::Bitboard,
     pieces::{Piece, PieceWithBitboard},
@@ -22,7 +24,7 @@ impl Bitboard {
         self.king_move_arr(blocked, _capturable)
             .into_iter()
             .reduce(|acc, e| acc | e)
-            .unwrap_or(0.into())
+            .unwrap_or(Bitboard(u256::ZERO))
     }
 
     /// Pseudolegal moves by king

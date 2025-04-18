@@ -1,3 +1,5 @@
+use ethnum::u256;
+
 use crate::chess_engine::{
     bitboard::{BitIndex, Bitboard, Bitboards, bitboard_idx},
     pieces::{Piece, PieceColor, PieceType, PieceWithBitboard},
@@ -193,7 +195,7 @@ impl Bitboards {
         }
 
         // en passant
-        let en_passant = ply.en_passant_board.unwrap_or(0.into());
+        let en_passant = ply.en_passant_board.unwrap_or(Bitboard(u256::ZERO));
         self.en_passant = en_passant;
 
         // update hash
@@ -248,10 +250,10 @@ impl Bitboards {
 
         // restore en_passant
         if let Some(ply) = previous_ply {
-            let en_passant = ply.en_passant_board.unwrap_or(0.into());
+            let en_passant = ply.en_passant_board.unwrap_or(Bitboard(u256::ZERO));
             self.en_passant = en_passant;
         } else {
-            self.en_passant = 0.into();
+            self.en_passant = Bitboard(u256::ZERO);
         }
 
         // update visited positions
@@ -311,6 +313,8 @@ pub fn captures_only(iter: impl Iterator<Item = Ply>) -> impl Iterator<Item = Pl
 #[cfg(test)]
 mod tests {
     use std::collections::BinaryHeap;
+
+    use ethnum::u256;
 
     use crate::chess_engine::{
         bitboard::{
@@ -558,7 +562,7 @@ mod tests {
             moving_piece: WHITE_PAWN,
             from: 32.into(),
             to: 0.into(),
-            en_passant_board: Some(Bitboard(1 << 16)),
+            en_passant_board: Some(Bitboard(u256::ONE << 16)),
             ..Default::default()
         };
 
@@ -580,13 +584,13 @@ mod tests {
             moving_piece: WHITE_PAWN,
             from: 32.into(),
             to: 0.into(),
-            en_passant_board: Some(Bitboard(1 << 16)),
+            en_passant_board: Some(Bitboard(u256::ONE << 16)),
             ..Default::default()
         };
 
         bitboard.make_ply(&ply);
         bitboard.unmake_ply(&ply, None);
-        assert_eq!(bitboard.en_passant, 0.into());
+        assert_eq!(bitboard.en_passant, Bitboard(u256::ZERO));
     }
 
     #[test]
@@ -612,7 +616,7 @@ mod tests {
             moving_piece: WHITE_PAWN,
             from: 32.into(),
             to: 0.into(),
-            en_passant_board: Some(Bitboard(1 << 16)),
+            en_passant_board: Some(Bitboard(u256::ONE << 16)),
             ..Default::default()
         };
 

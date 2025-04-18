@@ -8,7 +8,7 @@ use rand::prelude::*;
 use rand_chacha::ChaCha8Rng;
 use std::ops::BitXorAssign;
 
-pub const PIECE_POSITIONS_COUNT: usize = PIECE_TYPE_COUNT * PIECE_COLOR_COUNT * 128;
+pub const PIECE_POSITIONS_COUNT: usize = PIECE_TYPE_COUNT * PIECE_COLOR_COUNT * 256;
 pub const CHANGE_PLAYER_INDEX: usize = PIECE_POSITIONS_COUNT;
 pub const ZOBRIST_TABLE_LENGTH: usize = PIECE_POSITIONS_COUNT + 1;
 
@@ -22,7 +22,7 @@ impl ZobristKey {
     fn to_index(&self) -> usize {
         match self {
             Self::Piece(piece, position) => {
-                (256 * piece.0 as usize) + (128 * piece.1 as usize) + *position as usize
+                (512 * piece.0 as usize) + (256 * piece.1 as usize) + *position as usize
             }
             Self::ChangePlayer => CHANGE_PLAYER_INDEX,
         }
@@ -238,7 +238,7 @@ mod tests {
     fn exhaustive_key_iteration() {
         let mut set = HashSet::new();
         for piece in Piece::iter() {
-            for i in 0..128 {
+            for i in 0..256 {
                 let index = ZobristKey::Piece(piece, i).to_index();
                 assert!(index < ZOBRIST_TABLE_LENGTH);
                 assert!(set.insert(index));

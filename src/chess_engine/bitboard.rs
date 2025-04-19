@@ -310,33 +310,28 @@ impl Bitboards {
         }
 
         let mut board = Bitboard(u256::ZERO);
+        let blocked_board = self.blocked_mask_for_color(color);
+        let capturable_board = self.all_pieces_by_color(color.next());
+
         for piece in Piece::iter_color(color) {
             for i in 0..self.piece_list[bitboard_idx(piece)].len() {
                 let idx = self.piece_list[bitboard_idx(piece)][i];
-                board |= match piece.0 {
-                    PieceType::King => Bitboard::from(idx).king_en_prise_mask(
-                        &self.blocked_mask_for_color(color),
-                        &self.all_pieces_by_color(color.next()),
-                    ),
-                    PieceType::Queen => Bitboard::from(idx).queen_en_prise_mask(
-                        &self.blocked_mask_for_color(color),
-                        &self.all_pieces_by_color(color.next()),
-                    ),
-                    PieceType::Rook => Bitboard::from(idx).rook_en_prise_mask(
-                        &self.blocked_mask_for_color(color),
-                        &self.all_pieces_by_color(color.next()),
-                    ),
-                    PieceType::Bishop => Bitboard::from(idx).bishop_en_prise_mask(
-                        &self.blocked_mask_for_color(color),
-                        &self.all_pieces_by_color(color.next()),
-                    ),
-                    PieceType::Knight => Bitboard::from(idx).knight_en_prise_mask(
-                        &self.blocked_mask_for_color(color),
-                        &self.all_pieces_by_color(color.next()),
-                    ),
-                    PieceType::Pawn => Bitboard::from(idx)
-                        .pawn_en_prise_mask(&self.blocked_mask_for_color(color), color),
-                }
+                board |=
+                    match piece.0 {
+                        PieceType::King => Bitboard::from(idx)
+                            .king_en_prise_mask(&blocked_board, &capturable_board),
+                        PieceType::Queen => Bitboard::from(idx)
+                            .queen_en_prise_mask(&blocked_board, &capturable_board),
+                        PieceType::Rook => Bitboard::from(idx)
+                            .rook_en_prise_mask(&blocked_board, &capturable_board),
+                        PieceType::Bishop => Bitboard::from(idx)
+                            .bishop_en_prise_mask(&blocked_board, &capturable_board),
+                        PieceType::Knight => Bitboard::from(idx)
+                            .knight_en_prise_mask(&blocked_board, &capturable_board),
+                        PieceType::Pawn => {
+                            Bitboard::from(idx).pawn_en_prise_mask(&blocked_board, color)
+                        }
+                    }
             }
         }
         en_prise_table.insert((*self.zobrist_hash, color as u8), board);

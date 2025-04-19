@@ -219,7 +219,7 @@ impl Bitboards {
                 *i += 1
             })
             .or_insert(1);
-        self.check_cache = check_cache;
+        self.check_quiescence_table = check_cache;
     }
 
     pub fn unmake_ply(&mut self, ply: &Ply, previous_ply: Option<&Ply>) {
@@ -268,7 +268,7 @@ impl Bitboards {
             .and_modify(|i| *i -= 1);
 
         // returning to a previous position, so we can check cache
-        self.check_cache = true;
+        self.check_quiescence_table = true;
 
         // update hash
         self.zobrist_hash = self

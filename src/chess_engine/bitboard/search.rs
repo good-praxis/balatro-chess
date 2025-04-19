@@ -159,13 +159,15 @@ impl Bitboards {
 
     fn quiescence_search(&mut self, meta: &mut SearchMeta, mut alpha: i32, beta: i32) -> i32 {
         // Check cached results
-        if self.check_cache {
+        if self.check_quiescence_table {
             if let Some(result) = self.quiescence_table.lock().unwrap().get(&(
                 *self.zobrist_hash,
                 meta.id,
                 meta.last_ply_by() as u8,
             )) {
                 return *result;
+            } else {
+                self.check_quiescence_table = false;
             }
         }
 

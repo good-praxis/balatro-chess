@@ -151,10 +151,8 @@ pub struct Bitboards {
     /// thricefold repetition protection.
     pub visited_positions: Arc<Mutex<HashMap<u32, isize, BuildHasherDefault<FnvHasher64>>>>,
 
-    // Search-related lookup tables
-    /// if false we don't need to lock the mutex
-    pub check_cache: bool,
-    /// Storing
+    // Storing
+    pub check_quiescence_table: bool,
     pub quiescence_table: Arc<Mutex<HashMap<(u32, u16, u8), i32, BuildHasherDefault<FnvHasher64>>>>,
     pub pv_table: Arc<Mutex<HashMap<(u32, u16), Ply, BuildHasherDefault<FnvHasher64>>>>,
     //pub evaluation_table: Arc<Mutex<HashMap<u32, i32, BuildHasherDefault<FnvHasher64>>>>,

@@ -356,38 +356,38 @@ impl Bitboards {
                 match piece_type {
                     PieceType::King => {
                         coll.extend(legality_filter(
-                            board.king_plys_iter(blocked, capturable, bitboard_ptr, piece),
+                            board.king_plys(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
                     PieceType::Queen => {
                         coll.extend(legality_filter(
-                            board.queen_plys_iter(blocked, capturable, bitboard_ptr, piece),
+                            board.queen_plys(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
                     PieceType::Rook => {
                         coll.extend(legality_filter(
-                            board.rook_plys_iter(blocked, capturable, bitboard_ptr, piece),
+                            board.rook_plys(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
 
                     PieceType::Bishop => {
                         coll.extend(legality_filter(
-                            board.bishop_plys_iter(blocked, capturable, bitboard_ptr, piece),
+                            board.bishop_plys(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
                     PieceType::Knight => {
                         coll.extend(legality_filter(
-                            board.knight_plys_iter(blocked, capturable, bitboard_ptr, piece),
+                            board.knight_plys(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
 
                     PieceType::Pawn => coll.extend(legality_filter(
-                        board.pawn_plys_iter(
+                        board.pawn_plys(
                             blocked,
                             capturable,
                             bitboard_ptr,
@@ -419,7 +419,7 @@ impl Bitboards {
                 match piece_type {
                     PieceType::King => {
                         coll.extend(legality_filter(
-                            captures_only(board.king_plys_iter(
+                            captures_only(board.king_plys(
                                 blocked,
                                 capturable,
                                 bitboards_ptr,
@@ -430,7 +430,7 @@ impl Bitboards {
                     }
                     PieceType::Queen => {
                         coll.extend(legality_filter(
-                            captures_only(board.queen_plys_iter(
+                            captures_only(board.queen_plys(
                                 blocked,
                                 capturable,
                                 bitboards_ptr,
@@ -441,7 +441,7 @@ impl Bitboards {
                     }
                     PieceType::Rook => {
                         coll.extend(legality_filter(
-                            captures_only(board.rook_plys_iter(
+                            captures_only(board.rook_plys(
                                 blocked,
                                 capturable,
                                 bitboards_ptr,
@@ -453,7 +453,7 @@ impl Bitboards {
 
                     PieceType::Bishop => {
                         coll.extend(legality_filter(
-                            captures_only(board.bishop_plys_iter(
+                            captures_only(board.bishop_plys(
                                 blocked,
                                 capturable,
                                 bitboards_ptr,
@@ -464,7 +464,7 @@ impl Bitboards {
                     }
                     PieceType::Knight => {
                         coll.extend(legality_filter(
-                            captures_only(board.knight_plys_iter(
+                            captures_only(board.knight_plys(
                                 blocked,
                                 capturable,
                                 bitboards_ptr,
@@ -475,7 +475,7 @@ impl Bitboards {
                     }
 
                     PieceType::Pawn => coll.extend(legality_filter(
-                        captures_only(board.pawn_plys_iter(
+                        captures_only(board.pawn_plys(
                             blocked,
                             capturable,
                             bitboards_ptr,

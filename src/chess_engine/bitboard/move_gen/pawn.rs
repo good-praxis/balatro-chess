@@ -16,64 +16,6 @@ fn pawn_dir(color: PieceColor) -> fn(&Bitboard) -> Bitboard {
 }
 
 impl Bitboard {
-    /// Cumulative pseudolegal mask of pawn moves
-    pub fn pawn_move_mask(
-        &self,
-        blocked: &Self,
-        capturable: &Self,
-        color: PieceColor,
-        unmoved_pieces: &Self,
-        en_passant: &Self,
-    ) -> Self {
-        self.pawn_move_arr(blocked, capturable, color, unmoved_pieces, en_passant)
-            .into_iter()
-            .reduce(|acc, e| acc | e)
-            .unwrap()
-    }
-    /// Pseudolegal moves by pawn
-    pub fn pawn_move_arr(
-        &self,
-        blocked: &Self,
-        capturable: &Self,
-        color: PieceColor,
-        unmoved_pieces: &Self,
-        en_passant: &Self,
-    ) -> Vec<Self> {
-        let dir = pawn_dir(color);
-        let mut moves = vec![];
-
-        let normal = dir(self);
-        if *normal != 0 && *normal & **blocked == 0 {
-            moves.push(normal);
-
-            // Normal push was possible, check for double
-            if **self & **unmoved_pieces != 0 {
-                let double = dir(&normal);
-                if *double != 0 && *double & **blocked == 0 {
-                    moves.push(double);
-                }
-            }
-        }
-
-        let capture_dirs = [Bitboard::shift_we, Bitboard::shift_ea];
-        for dir in capture_dirs {
-            // Normal captures
-            let capture = dir(&normal);
-            if *capture & **capturable != 0 {
-                moves.push(capture)
-            }
-
-            // en passant
-            if **en_passant != 0 {
-                if *capture & **en_passant != 0 {
-                    moves.push(capture);
-                }
-            }
-        }
-
-        moves
-    }
-
     /// Mask of threatened positions
     pub fn pawn_en_prise_mask(&self, blocked: &Self, color: PieceColor) -> Self {
         let mut mask = Bitboard(u256::ZERO);
@@ -92,7 +34,7 @@ impl Bitboard {
         mask
     }
 
-    pub fn pawn_plys_iter<'a>(
+    pub fn pawn_plys<'a>(
         &'a self,
         blocked: &Self,
         capturable: &Self,
@@ -173,26 +115,6 @@ impl Bitboard {
 
         moves.into_iter()
     }
-
-    pub fn pawn_plys<T: Default + FromIterator<Ply>>(
-        &self,
-        blocked: &Self,
-        capturable: &Self,
-        bitboard_ptr: *const Bitboard,
-        color: PieceColor,
-        unmoved_pieces: *const Bitboard,
-        en_passant: *const Bitboard,
-    ) -> T {
-        self.pawn_plys_iter(
-            blocked,
-            capturable,
-            bitboard_ptr,
-            color,
-            unmoved_pieces,
-            en_passant,
-        )
-        .collect()
-    }
 }
 
 #[cfg(test)]
@@ -203,82 +125,6 @@ mod tests {
         bitboard::{Bitboards, Ply, bitboard_idx},
         pieces::{BLACK_PAWN, PieceColor, WHITE_PAWN},
     };
-
-    #[test]
-    fn white_pawn_move_mask() {
-        let boards = Bitboards::from_str(
-            r#"
-            000
-            P00
-            0pP
-            "#,
-        );
-        let board = boards.boards[bitboard_idx(WHITE_PAWN)];
-
-        let en_passant = Bitboards::from_str(
-            r#"
-            000
-            00p
-            000
-            "#,
-        );
-        let en_passant = en_passant.boards[bitboard_idx(WHITE_PAWN)];
-
-        let expected = Bitboards::from_str(
-            r#"
-            0p0
-            ppp
-            000
-            "#,
-        );
-        let expected = expected.boards[bitboard_idx(WHITE_PAWN)];
-        let mask = board.pawn_move_mask(
-            &boards.blocked_mask_for_color(PieceColor::White),
-            &boards.all_pieces_by_color(PieceColor::Black),
-            PieceColor::White,
-            &boards.unmoved_pieces,
-            &en_passant,
-        );
-        assert_eq!(mask, expected);
-    }
-
-    #[test]
-    fn black_pawn_move_mask() {
-        let boards = Bitboards::from_str(
-            r#"
-            0Pp
-            p00
-            000
-            "#,
-        );
-        let board = boards.boards[bitboard_idx(BLACK_PAWN)];
-
-        let en_passant = Bitboards::from_str(
-            r#"
-            000
-            00p
-            000
-            "#,
-        );
-        let en_passant = en_passant.boards[bitboard_idx(WHITE_PAWN)];
-
-        let expected = Bitboards::from_str(
-            r#"
-            000
-            ppp
-            0p0
-            "#,
-        );
-        let expected = expected.boards[bitboard_idx(WHITE_PAWN)];
-        let mask = board.pawn_move_mask(
-            &boards.blocked_mask_for_color(PieceColor::Black),
-            &boards.all_pieces_by_color(PieceColor::White),
-            PieceColor::Black,
-            &boards.unmoved_pieces,
-            &en_passant,
-        );
-        assert_eq!(mask, expected);
-    }
 
     #[test]
     fn white_pawn_en_prise_mask() {
@@ -339,14 +185,16 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_PAWN)];
 
-        let mut plys: BinaryHeap<Ply> = board.pawn_plys(
-            &boards.blocked_mask_for_color(PieceColor::White),
-            &boards.all_pieces_by_color(PieceColor::Black),
-            boards.boards.as_ptr(),
-            PieceColor::White,
-            &boards.unmoved_pieces,
-            &boards.en_passant,
-        );
+        let mut plys: BinaryHeap<Ply> = board
+            .pawn_plys(
+                &boards.blocked_mask_for_color(PieceColor::White),
+                &boards.all_pieces_by_color(PieceColor::Black),
+                boards.boards.as_ptr(),
+                PieceColor::White,
+                &boards.unmoved_pieces,
+                &boards.en_passant,
+            )
+            .collect();
         assert_eq!(plys.len(), 3);
         assert!(plys.pop().unwrap().capturing.is_some())
     }
@@ -371,14 +219,16 @@ mod tests {
         );
         let en_passant = en_passant.boards[bitboard_idx(WHITE_PAWN)];
 
-        let mut plys: BinaryHeap<Ply> = board.pawn_plys(
-            &boards.blocked_mask_for_color(PieceColor::Black),
-            &boards.all_pieces_by_color(PieceColor::White),
-            boards.boards.as_ptr(),
-            PieceColor::Black,
-            &boards.unmoved_pieces,
-            &en_passant,
-        );
+        let mut plys: BinaryHeap<Ply> = board
+            .pawn_plys(
+                &boards.blocked_mask_for_color(PieceColor::Black),
+                &boards.all_pieces_by_color(PieceColor::White),
+                boards.boards.as_ptr(),
+                PieceColor::Black,
+                &boards.unmoved_pieces,
+                &en_passant,
+            )
+            .collect();
         assert_eq!(plys.len(), 3);
         assert!(plys.pop().unwrap().capturing.is_some())
     }
@@ -393,14 +243,16 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_PAWN)];
 
-        let plys: Vec<Ply> = board.pawn_plys(
-            &boards.blocked_mask_for_color(PieceColor::White),
-            &boards.all_pieces_by_color(PieceColor::Black),
-            boards.boards.as_ptr(),
-            PieceColor::White,
-            &boards.unmoved_pieces,
-            &boards.en_passant,
-        );
+        let plys: Vec<Ply> = board
+            .pawn_plys(
+                &boards.blocked_mask_for_color(PieceColor::White),
+                &boards.all_pieces_by_color(PieceColor::Black),
+                boards.boards.as_ptr(),
+                PieceColor::White,
+                &boards.unmoved_pieces,
+                &boards.en_passant,
+            )
+            .collect();
         assert_eq!(plys.len(), 0);
     }
 }

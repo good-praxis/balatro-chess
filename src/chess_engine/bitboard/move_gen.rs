@@ -85,6 +85,7 @@ impl Bitboard {
         blocked: &Self,
         _capturable: &Self,
     ) -> Vec<Self> {
+        // TODO: refactor
         dirs.iter()
             .map(|dir| dir(self))
             .filter(|board| **board != 0 && **board & **blocked == 0)
@@ -149,6 +150,7 @@ impl Bitboard {
 
     // step-in-direction until running into a `blocked` bit (exclusive) or `capturable` bit (inclusive). Returns a Vec of Bitboards
     fn step_dir(&self, dir: fn(&Self) -> Self, blocked: &Self, capturable: &Self) -> Vec<Self> {
+        // TODO: turn into iterator
         let mut steps = vec![];
         let mut current = dir(self);
         while *current != 0 && *current & **blocked == 0 {
@@ -159,19 +161,6 @@ impl Bitboard {
             current = dir(&current);
         }
         steps
-    }
-
-    /// Steps towards directions until running into a blocked (exclusive) or capturable (inclusive) bit
-    fn step_in_dirs(
-        &self,
-        dirs: &[fn(&Self, &Self, &Self) -> Vec<Self>],
-        blocked: &Self,
-        capturable: &Self,
-    ) -> Vec<Self> {
-        dirs.iter()
-            .map(|dir| dir(self, blocked, capturable))
-            .flatten()
-            .collect()
     }
 
     fn step_we(&self, blocked: &Self, capturable: &Self) -> Vec<Self> {

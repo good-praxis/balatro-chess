@@ -50,7 +50,6 @@ pub struct SearchMeta {
     weights: Weights,
     // PV
     follow_pv: bool,
-    score_pv: bool,
 }
 impl SearchMeta {
     fn new() -> Self {

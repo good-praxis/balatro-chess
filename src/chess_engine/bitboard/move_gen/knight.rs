@@ -1,9 +1,6 @@
 use ethnum::u256;
 
-use crate::chess_engine::{
-    bitboard::Bitboard,
-    pieces::{Piece, PieceWithBitboard},
-};
+use crate::chess_engine::{bitboard::Bitboard, pieces::Piece};
 
 use super::ply::Ply;
 
@@ -37,7 +34,7 @@ impl Bitboard {
         self.knight_move_mask(blocked, capturable)
     }
 
-    pub fn knight_plys_iter(
+    pub fn knight_plys(
         &self,
         blocked: &Self,
         capturable: &Self,
@@ -45,17 +42,6 @@ impl Bitboard {
         piece: Piece,
     ) -> impl Iterator<Item = Ply> {
         self.single_step_plys_in_dirs(&KNIGHT_DIRS, blocked, capturable, bitboard_ptr, piece)
-    }
-
-    pub fn knight_plys<T: Default + FromIterator<Ply>>(
-        &self,
-        blocked: &Self,
-        capturable: &Self,
-        bitboard_ptr: *const Bitboard,
-        piece: Piece,
-    ) -> T {
-        self.knight_plys_iter(blocked, capturable, bitboard_ptr, piece)
-            .collect()
     }
 }
 
@@ -142,12 +128,14 @@ mod tests {
         let board = boards.boards[bitboard_idx(WHITE_KNIGHT)];
         let boards_ptr = boards.boards.as_ptr();
 
-        let mut plys: BinaryHeap<Ply> = board.knight_plys(
-            &boards.blocked_mask_for_color(PieceColor::White),
-            &boards.all_pieces_by_color(PieceColor::Black),
-            boards_ptr,
-            WHITE_KNIGHT,
-        );
+        let mut plys: BinaryHeap<Ply> = board
+            .knight_plys(
+                &boards.blocked_mask_for_color(PieceColor::White),
+                &boards.all_pieces_by_color(PieceColor::Black),
+                boards_ptr,
+                WHITE_KNIGHT,
+            )
+            .collect();
         assert_eq!(plys.len(), 8);
         assert!(plys.pop().unwrap().capturing.is_some())
     }

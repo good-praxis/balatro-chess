@@ -1,7 +1,7 @@
 use ethnum::u256;
 
 use crate::chess_engine::{
-    bitboard::{BitIndex, Bitboard, Bitboards, bitboard_idx},
+    bitboard::{BitIndex, Bitboard, Bitboards, all_pieces_by_color_from_ptr_iter, bitboard_idx},
     pieces::{Piece, PieceColor, PieceType, PieceWithBitboard},
 };
 use std::{cmp::Ordering, fmt::Display};
@@ -95,7 +95,7 @@ impl Bitboard {
         dirs: &[fn(&Self) -> Self],
         blocked: &Self,
         capturable: &Self,
-        capturing_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        bitboard_ptr: *const Bitboard,
         by_piece: Piece,
     ) -> impl Iterator<Item = Ply> {
         dirs.iter()
@@ -105,6 +105,8 @@ impl Bitboard {
                 let mut capturing = None;
                 if *board & **capturable != 0 {
                     // There is a capture present
+                    let capturing_iter =
+                        all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next());
                     for PieceWithBitboard(piece, opposing_board) in capturing_iter.clone() {
                         let capture = board & opposing_board;
                         if *capture != 0 {
@@ -129,7 +131,7 @@ impl Bitboard {
         dirs: &[fn(&Self, &Self, &Self) -> Vec<Self>],
         blocked: &Self,
         capturable: &Self,
-        capturing_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        bitboard_ptr: *const Bitboard,
         by_piece: Piece,
     ) -> impl Iterator<Item = Ply> {
         dirs.iter()
@@ -139,6 +141,8 @@ impl Bitboard {
                 let mut capturing = None;
                 if *board & **capturable != 0 {
                     // There is a capture present
+                    let capturing_iter =
+                        all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next());
                     for PieceWithBitboard(piece, opposing_board) in capturing_iter.clone() {
                         let capture = board & opposing_board;
                         if *capture != 0 {
@@ -295,13 +299,12 @@ impl Bitboards {
 
 pub fn legality_filter(
     iter: impl Iterator<Item = Ply>,
-    boards: &Bitboards,
+    boards: &mut Bitboards,
 ) -> impl Iterator<Item = Ply> {
-    let mut sim_board = boards.clone();
     iter.filter(move |ply| {
-        sim_board.make_ply(ply);
-        let res = sim_board.legality_check(ply.moving_piece.1);
-        sim_board.unmake_ply(ply, None);
+        boards.make_ply(ply);
+        let res = boards.legality_check(ply.moving_piece.1);
+        boards.unmake_ply(ply, None);
         res
     })
 }
@@ -342,7 +345,7 @@ mod tests {
                 &KING_DIRS,
                 &boards.blocked_mask_for_color(PieceColor::White),
                 &boards.all_pieces_by_color(PieceColor::Black),
-                boards.all_pieces_by_color_iter(PieceColor::Black),
+                boards.boards.as_ptr(),
                 WHITE_KING,
             )
             .collect::<BinaryHeap<Ply>>();
@@ -367,7 +370,7 @@ mod tests {
                 &QUEEN_STEP_DIRS,
                 &boards.blocked_mask_for_color(PieceColor::White),
                 &boards.all_pieces_by_color(PieceColor::Black),
-                boards.all_pieces_by_color_iter(PieceColor::Black),
+                boards.boards.as_ptr(),
                 WHITE_QUEEN,
             )
             .collect::<BinaryHeap<Ply>>();

@@ -1,7 +1,7 @@
 use ethnum::u256;
 
 use crate::chess_engine::{
-    bitboard::Bitboard,
+    bitboard::{Bitboard, all_pieces_by_color_from_ptr_iter},
     pieces::{Piece, PieceColor, PieceType, PieceWithBitboard},
 };
 
@@ -92,11 +92,11 @@ impl Bitboard {
         mask
     }
 
-    pub fn pawn_plys_iter(
-        &self,
+    pub fn pawn_plys_iter<'a>(
+        &'a self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        bitboard_ptr: *const Bitboard,
         color: PieceColor,
         unmoved_pieces: &Self,
         en_passant: &Self,
@@ -137,6 +137,7 @@ impl Bitboard {
             let capture = dir(&normal);
             if *capture & **capturable != 0 {
                 // There is a capture present
+                let capturable_iter = all_pieces_by_color_from_ptr_iter(bitboard_ptr, color.next());
                 for PieceWithBitboard(piece_type, opposing_board) in capturable_iter.clone() {
                     let capture = capture & opposing_board;
                     if *capture != 0 {
@@ -177,7 +178,7 @@ impl Bitboard {
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturing_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        bitboard_ptr: *const Bitboard,
         color: PieceColor,
         unmoved_pieces: &Self,
         en_passant: &Self,
@@ -185,7 +186,7 @@ impl Bitboard {
         self.pawn_plys_iter(
             blocked,
             capturable,
-            capturing_iter,
+            bitboard_ptr,
             color,
             unmoved_pieces,
             en_passant,
@@ -341,7 +342,7 @@ mod tests {
         let mut plys: BinaryHeap<Ply> = board.pawn_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_pieces_by_color_iter(PieceColor::Black),
+            boards.boards.as_ptr(),
             PieceColor::White,
             &boards.unmoved_pieces,
             &boards.en_passant,
@@ -373,7 +374,7 @@ mod tests {
         let mut plys: BinaryHeap<Ply> = board.pawn_plys(
             &boards.blocked_mask_for_color(PieceColor::Black),
             &boards.all_pieces_by_color(PieceColor::White),
-            boards.all_pieces_by_color_iter(PieceColor::White),
+            boards.boards.as_ptr(),
             PieceColor::Black,
             &boards.unmoved_pieces,
             &en_passant,
@@ -395,7 +396,7 @@ mod tests {
         let plys: Vec<Ply> = board.pawn_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_pieces_by_color_iter(PieceColor::Black),
+            boards.boards.as_ptr(),
             PieceColor::White,
             &boards.unmoved_pieces,
             &boards.en_passant,

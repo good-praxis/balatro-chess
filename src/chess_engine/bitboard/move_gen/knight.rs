@@ -41,20 +41,20 @@ impl Bitboard {
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        bitboard_ptr: *const Bitboard,
         piece: Piece,
     ) -> impl Iterator<Item = Ply> {
-        self.single_step_plys_in_dirs(&KNIGHT_DIRS, blocked, capturable, capturable_iter, piece)
+        self.single_step_plys_in_dirs(&KNIGHT_DIRS, blocked, capturable, bitboard_ptr, piece)
     }
 
     pub fn knight_plys<T: Default + FromIterator<Ply>>(
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        bitboard_ptr: *const Bitboard,
         piece: Piece,
     ) -> T {
-        self.knight_plys_iter(blocked, capturable, capturable_iter, piece)
+        self.knight_plys_iter(blocked, capturable, bitboard_ptr, piece)
             .collect()
     }
 }
@@ -140,11 +140,12 @@ mod tests {
             "#,
         );
         let board = boards.boards[bitboard_idx(WHITE_KNIGHT)];
+        let boards_ptr = boards.boards.as_ptr();
 
         let mut plys: BinaryHeap<Ply> = board.knight_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_pieces_by_color_iter(PieceColor::Black),
+            boards_ptr,
             WHITE_KNIGHT,
         );
         assert_eq!(plys.len(), 8);

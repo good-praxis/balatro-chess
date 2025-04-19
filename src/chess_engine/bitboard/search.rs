@@ -80,7 +80,7 @@ impl SearchMeta {
 }
 
 impl Bitboards {
-    pub fn evaluate(&self, meta: &SearchMeta) -> i32 {
+    pub fn evaluate(&mut self, meta: &SearchMeta) -> i32 {
         // if self.check_cache {
         //     if let Some(eval) = self
         //         .evaluation_table
@@ -318,14 +318,14 @@ mod tests {
     #[test]
     fn evaluate_default() {
         let game = Game::default();
-        let boards = game.boards;
+        let mut boards = game.boards;
         let score = boards.evaluate(&SearchMeta::default());
         assert_eq!(score, 0);
     }
 
     #[test]
     fn evaluate_material_score() {
-        let boards = Bitboards::from_str(
+        let mut boards = Bitboards::from_str(
             r#"
             ppP
             PPP
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn evaluate_movement_score() {
-        let boards = Bitboards::from_str(
+        let mut boards = Bitboards::from_str(
             r#"
             00000
             00000
@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn evaluate_isolated_pawns_score() {
-        let boards = Bitboards::from_str(
+        let mut boards = Bitboards::from_str(
             r#"
             PPPPPPPP
             00000000

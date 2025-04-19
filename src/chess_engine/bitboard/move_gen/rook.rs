@@ -33,20 +33,20 @@ impl Bitboard {
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        bitboard_ptr: *const Bitboard,
         piece: Piece,
     ) -> impl Iterator<Item = Ply> {
-        self.multi_step_plys_in_dirs(&ROOK_STEP_DIRS, blocked, capturable, capturable_iter, piece)
+        self.multi_step_plys_in_dirs(&ROOK_STEP_DIRS, blocked, capturable, bitboard_ptr, piece)
     }
 
     pub fn rook_plys<T: Default + FromIterator<Ply>>(
         &self,
         blocked: &Self,
         capturable: &Self,
-        capturable_iter: impl Iterator<Item = PieceWithBitboard> + Clone,
+        bitboard_ptr: *const Bitboard,
         piece: Piece,
     ) -> T {
-        self.rook_plys_iter(blocked, capturable, capturable_iter, piece)
+        self.rook_plys_iter(blocked, capturable, bitboard_ptr, piece)
             .collect()
     }
 }
@@ -156,7 +156,7 @@ mod tests {
         let mut plys: BinaryHeap<Ply> = board.rook_plys(
             &boards.blocked_mask_for_color(PieceColor::White),
             &boards.all_pieces_by_color(PieceColor::Black),
-            boards.all_pieces_by_color_iter(PieceColor::Black),
+            boards.boards.as_ptr(),
             WHITE_ROOK,
         );
         assert_eq!(plys.len(), 8);

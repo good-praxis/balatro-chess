@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use ethnum::{U256, u256};
+use ethnum::u256;
 use move_gen::ply::{captures_only, legality_filter};
 use simplehash::FnvHasher64;
 use std::{
@@ -133,6 +133,7 @@ impl Bitboard {
 pub struct Bitboards {
     /// index = PieceType + (PieceColor * amount of PieceType)
     pub boards: [Bitboard; PIECE_COMBO_COUNT],
+
     pub piece_list: Vec<Vec<BitIndex>>,
     /// constrains from board size, 1 = active tile;
     limits: Bitboard,
@@ -296,15 +297,6 @@ impl Bitboards {
         board
     }
 
-    /// Primarily used when we don't want a full mask of all pieces, but want to determine which piece we are capturing
-    pub fn all_pieces_by_color_iter(
-        &self,
-        color: PieceColor,
-    ) -> impl Iterator<Item = PieceWithBitboard> + Clone {
-        Piece::iter_color(color)
-            .map(|piece| PieceWithBitboard(piece, self.boards[bitboard_idx(piece)]))
-    }
-
     /// Used with functions asked for blocking masks
     pub fn blocked_mask_for_color(&self, color: PieceColor) -> Bitboard {
         !self.limits | self.all_pieces_by_color(color)
@@ -351,43 +343,44 @@ impl Bitboards {
     }
 
     /// all legal plys by color
-    pub fn all_legal_plys_by_color<T: Default + Extend<Ply>>(&self, color: PieceColor) -> T {
+    pub fn all_legal_plys_by_color<T: Default + Extend<Ply>>(&mut self, color: PieceColor) -> T {
         PieceType::iter().fold(Default::default(), |mut coll, piece_type| {
-            for piece in self.piece_list[bitboard_idx(Piece(piece_type, color))].iter() {
-                let board = Bitboard::from(*piece);
+            for i in 0..self.piece_list[bitboard_idx(Piece(piece_type, color))].len() {
+                let piece = self.piece_list[bitboard_idx(Piece(piece_type, color))][i];
+                let board = Bitboard::from(piece);
                 let blocked = &self.blocked_mask_for_color(color);
                 let capturable = &self.all_pieces_by_color(color.next());
-                let capturable_iter = self.all_pieces_by_color_iter(color.next());
+                let bitboard_ptr = self.boards.as_ptr();
                 let piece = Piece(piece_type, color);
                 match piece_type {
                     PieceType::King => {
                         coll.extend(legality_filter(
-                            board.king_plys_iter(blocked, capturable, capturable_iter, piece),
+                            board.king_plys_iter(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
                     PieceType::Queen => {
                         coll.extend(legality_filter(
-                            board.queen_plys_iter(blocked, capturable, capturable_iter, piece),
+                            board.queen_plys_iter(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
                     PieceType::Rook => {
                         coll.extend(legality_filter(
-                            board.rook_plys_iter(blocked, capturable, capturable_iter, piece),
+                            board.rook_plys_iter(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
 
                     PieceType::Bishop => {
                         coll.extend(legality_filter(
-                            board.bishop_plys_iter(blocked, capturable, capturable_iter, piece),
+                            board.bishop_plys_iter(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
                     PieceType::Knight => {
                         coll.extend(legality_filter(
-                            board.knight_plys_iter(blocked, capturable, capturable_iter, piece),
+                            board.knight_plys_iter(blocked, capturable, bitboard_ptr, piece),
                             self,
                         ));
                     }
@@ -396,10 +389,10 @@ impl Bitboards {
                         board.pawn_plys_iter(
                             blocked,
                             capturable,
-                            capturable_iter,
+                            bitboard_ptr,
                             color,
-                            &self.unmoved_pieces,
-                            &self.en_passant,
+                            &self.unmoved_pieces.clone(),
+                            &self.en_passant.clone(),
                         ),
                         self,
                     )),
@@ -411,15 +404,16 @@ impl Bitboards {
 
     /// all legal capturing_plys by color
     pub fn all_legal_capturing_plys_by_color<T: Default + Extend<Ply>>(
-        &self,
+        &mut self,
         color: PieceColor,
     ) -> T {
         PieceType::iter().fold(Default::default(), |mut coll, piece_type| {
-            for piece in self.piece_list[bitboard_idx(Piece(piece_type, color))].iter() {
-                let board = Bitboard::from(*piece);
+            for i in 0..self.piece_list[bitboard_idx(Piece(piece_type, color))].len() {
+                let piece = self.piece_list[bitboard_idx(Piece(piece_type, color))][i];
+                let board = Bitboard::from(piece);
                 let blocked = &self.blocked_mask_for_color(color);
                 let capturable = &self.all_pieces_by_color(color.next());
-                let capturable_iter = self.all_pieces_by_color_iter(color.next());
+                let bitboards_ptr = self.boards.as_ptr();
                 let piece = Piece(piece_type, color);
                 match piece_type {
                     PieceType::King => {
@@ -427,7 +421,7 @@ impl Bitboards {
                             captures_only(board.king_plys_iter(
                                 blocked,
                                 capturable,
-                                capturable_iter,
+                                bitboards_ptr,
                                 piece,
                             )),
                             self,
@@ -438,7 +432,7 @@ impl Bitboards {
                             captures_only(board.queen_plys_iter(
                                 blocked,
                                 capturable,
-                                capturable_iter,
+                                bitboards_ptr,
                                 piece,
                             )),
                             self,
@@ -449,7 +443,7 @@ impl Bitboards {
                             captures_only(board.rook_plys_iter(
                                 blocked,
                                 capturable,
-                                capturable_iter,
+                                bitboards_ptr,
                                 piece,
                             )),
                             self,
@@ -461,7 +455,7 @@ impl Bitboards {
                             captures_only(board.bishop_plys_iter(
                                 blocked,
                                 capturable,
-                                capturable_iter,
+                                bitboards_ptr,
                                 piece,
                             )),
                             self,
@@ -472,7 +466,7 @@ impl Bitboards {
                             captures_only(board.knight_plys_iter(
                                 blocked,
                                 capturable,
-                                capturable_iter,
+                                bitboards_ptr,
                                 piece,
                             )),
                             self,
@@ -483,10 +477,10 @@ impl Bitboards {
                         captures_only(board.pawn_plys_iter(
                             blocked,
                             capturable,
-                            capturable_iter,
+                            bitboards_ptr,
                             color,
-                            &self.unmoved_pieces,
-                            &self.en_passant,
+                            &self.unmoved_pieces.clone(),
+                            &self.en_passant.clone(),
                         )),
                         self,
                     )),
@@ -495,6 +489,15 @@ impl Bitboards {
             coll
         })
     }
+}
+
+/// Primarily used when we don't want a full mask of all pieces, but want to determine which piece we are capturing
+pub fn all_pieces_by_color_from_ptr_iter(
+    boards: *const Bitboard,
+    color: PieceColor,
+) -> impl Iterator<Item = PieceWithBitboard> + Clone {
+    Piece::iter_color(color)
+        .map(move |piece| PieceWithBitboard(piece, unsafe { *boards.add(bitboard_idx(piece)) }))
 }
 
 /// Bitboard index of a certain PieceType and PieceColor combo
@@ -644,7 +647,7 @@ mod tests {
     #[test]
     fn all_moves_by_sites_default() {
         let game = Game::default();
-        let boards = game.boards;
+        let mut boards = game.boards;
         let white_moves: Vec<Ply> = boards.all_legal_plys_by_color(PieceColor::White);
         assert_eq!(white_moves.len(), 20);
         let black_moves: Vec<Ply> = boards.all_legal_plys_by_color(PieceColor::Black);
@@ -653,7 +656,7 @@ mod tests {
 
     #[test]
     fn all_moves_by_sites_complex() {
-        let boards = Bitboards::from_str(
+        let mut boards = Bitboards::from_str(
             r#"
         00000
         00k00
@@ -668,7 +671,7 @@ mod tests {
 
     #[test]
     fn all_captures_by_sites_complex() {
-        let boards = Bitboards::from_str(
+        let mut boards = Bitboards::from_str(
             r#"
         00000
         00k00

@@ -311,7 +311,8 @@ impl Bitboards {
 
         let mut board = Bitboard(u256::ZERO);
         for piece in Piece::iter_color(color) {
-            for idx in self.piece_list[bitboard_idx(piece)].clone() {
+            for i in 0..self.piece_list[bitboard_idx(piece)].len() {
+                let idx = self.piece_list[bitboard_idx(piece)][i];
                 board |= match piece.0 {
                     PieceType::King => Bitboard::from(idx).king_en_prise_mask(
                         &self.blocked_mask_for_color(color),
@@ -391,8 +392,8 @@ impl Bitboards {
                             capturable,
                             bitboard_ptr,
                             color,
-                            &self.unmoved_pieces.clone(),
-                            &self.en_passant.clone(),
+                            &raw const self.unmoved_pieces,
+                            &raw const self.en_passant,
                         ),
                         self,
                     )),
@@ -479,8 +480,8 @@ impl Bitboards {
                             capturable,
                             bitboards_ptr,
                             color,
-                            &self.unmoved_pieces.clone(),
-                            &self.en_passant.clone(),
+                            &raw const self.unmoved_pieces,
+                            &raw const self.en_passant,
                         )),
                         self,
                     )),

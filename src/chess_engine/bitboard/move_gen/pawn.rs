@@ -98,8 +98,8 @@ impl Bitboard {
         capturable: &Self,
         bitboard_ptr: *const Bitboard,
         color: PieceColor,
-        unmoved_pieces: &Self,
-        en_passant: &Self,
+        unmoved_pieces: *const Bitboard,
+        en_passant: *const Bitboard,
     ) -> impl Iterator<Item = Ply> {
         let dir = pawn_dir(color);
         let mut moves = vec![];
@@ -116,7 +116,7 @@ impl Bitboard {
             });
 
             // Normal push was possible, check for double
-            if **self & **unmoved_pieces != 0 {
+            if **self & unsafe { **unmoved_pieces } != 0 {
                 let double = dir(&normal);
                 if *double != 0 && *double & **blocked == 0 && *normal & **capturable == 0 {
                     moves.push(Ply {
@@ -138,7 +138,7 @@ impl Bitboard {
             if *capture & **capturable != 0 {
                 // There is a capture present
                 let capturable_iter = all_pieces_by_color_from_ptr_iter(bitboard_ptr, color.next());
-                for PieceWithBitboard(piece_type, opposing_board) in capturable_iter.clone() {
+                for PieceWithBitboard(piece_type, opposing_board) in capturable_iter {
                     let capture = capture & opposing_board;
                     if *capture != 0 {
                         capturing = Some((piece_type, capture.to_bit_idx()))
@@ -154,9 +154,9 @@ impl Bitboard {
             }
 
             // en passant
-            if **en_passant != 0 {
+            if unsafe { **en_passant } != 0 {
                 let capture = dir(&normal);
-                if *capture & **en_passant != 0 {
+                if *capture & unsafe { **en_passant } != 0 {
                     moves.push(Ply {
                         moving_piece: Piece(PieceType::Pawn, color),
                         from: bit_idx,
@@ -180,8 +180,8 @@ impl Bitboard {
         capturable: &Self,
         bitboard_ptr: *const Bitboard,
         color: PieceColor,
-        unmoved_pieces: &Self,
-        en_passant: &Self,
+        unmoved_pieces: *const Bitboard,
+        en_passant: *const Bitboard,
     ) -> T {
         self.pawn_plys_iter(
             blocked,

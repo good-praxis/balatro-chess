@@ -107,7 +107,7 @@ impl Bitboard {
                     // There is a capture present
                     let capturing_iter =
                         all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next());
-                    for PieceWithBitboard(piece, opposing_board) in capturing_iter.clone() {
+                    for PieceWithBitboard(piece, opposing_board) in capturing_iter {
                         let capture = board & opposing_board;
                         if *capture != 0 {
                             capturing = Some((piece, capture.to_bit_idx()))
@@ -143,7 +143,7 @@ impl Bitboard {
                     // There is a capture present
                     let capturing_iter =
                         all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next());
-                    for PieceWithBitboard(piece, opposing_board) in capturing_iter.clone() {
+                    for PieceWithBitboard(piece, opposing_board) in capturing_iter {
                         let capture = board & opposing_board;
                         if *capture != 0 {
                             capturing = Some((piece, capture.to_bit_idx()))

@@ -18,14 +18,18 @@ const KNIGHT_DIRS: [fn(&Bitboard) -> Bitboard; 8] = [
 impl Bitboard {
     /// Cumulative pseudolegal mask of knight moves
     pub fn knight_move_mask(&self, blocked: &Self, _capturable: &Self) -> Self {
-        self.knight_move_arr(blocked, _capturable)
+        self.knight_moves(blocked, _capturable)
             .into_iter()
             .reduce(|acc, e| acc | e)
             .unwrap_or(Self(u256::ZERO))
     }
 
     /// Pseudolegal moves by knight
-    pub fn knight_move_arr(&self, blocked: &Self, _capturable: &Self) -> Vec<Self> {
+    pub fn knight_moves(
+        &self,
+        blocked: &Self,
+        _capturable: &Self,
+    ) -> impl Iterator<Item = Bitboard> {
         self.shift_in_dirs(&KNIGHT_DIRS, blocked, _capturable)
     }
 

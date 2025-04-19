@@ -18,14 +18,14 @@ pub(crate) const KING_DIRS: [fn(&Bitboard) -> Bitboard; 8] = [
 impl Bitboard {
     /// Cumulative pseudolegal mask of king moves (no castling)
     pub fn king_move_mask(&self, blocked: &Self, _capturable: &Self) -> Self {
-        self.king_move_arr(blocked, _capturable)
+        self.king_moves(blocked, _capturable)
             .into_iter()
             .reduce(|acc, e| acc | e)
             .unwrap_or(Bitboard(u256::ZERO))
     }
 
     /// Pseudolegal moves by king
-    pub fn king_move_arr(&self, blocked: &Self, _capturable: &Self) -> Vec<Self> {
+    pub fn king_moves(&self, blocked: &Self, _capturable: &Self) -> impl Iterator<Item = Bitboard> {
         self.shift_in_dirs(&KING_DIRS, blocked, _capturable)
     }
 
@@ -114,11 +114,13 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_KING)];
 
-        let arr = board.king_move_arr(
-            &boards.blocked_mask_for_color(PieceColor::White),
-            &boards.all_pieces_by_color(PieceColor::Black),
-        );
-        assert_eq!(arr.len(), 3);
+        let vec: Vec<_> = board
+            .king_moves(
+                &boards.blocked_mask_for_color(PieceColor::White),
+                &boards.all_pieces_by_color(PieceColor::Black),
+            )
+            .collect();
+        assert_eq!(vec.len(), 3);
     }
 
     #[test]

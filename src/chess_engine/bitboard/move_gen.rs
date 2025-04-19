@@ -84,12 +84,11 @@ impl Bitboard {
         dirs: &[fn(&Self) -> Self],
         blocked: &Self,
         _capturable: &Self,
-    ) -> Vec<Self> {
+    ) -> impl Iterator<Item = Bitboard> {
         // TODO: refactor
         dirs.iter()
             .map(|dir| dir(self))
             .filter(|board| **board != 0 && **board & **blocked == 0)
-            .collect()
     }
 
     // fill-in-direction until running into a `blocked` bit (exclusive) or `capturable` bit (inclusive)

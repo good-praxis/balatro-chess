@@ -183,12 +183,12 @@ impl Bitboards {
             self.boards[capturing_idx].set(idx, false);
 
             // update piece list
-            let piece_list = self.piece_list[capturing_idx]
-                .iter()
-                .cloned()
-                .filter(|this_idx| *this_idx != idx)
-                .collect();
-            self.piece_list[capturing_idx] = piece_list;
+            for i in 0..self.piece_list[capturing_idx].len() {
+                if self.piece_list[capturing_idx][i] == idx {
+                    self.piece_list[capturing_idx].remove(i);
+                    break;
+                }
+            }
         }
 
         // Handle linked move

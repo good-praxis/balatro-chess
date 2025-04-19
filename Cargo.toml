@@ -31,7 +31,7 @@ name = "search_depth_5"
 harness = false
 
 [[bench]]
-name = "search_depth_1_sliding_pieces"
+name = "sliding_pieces"
 harness = false
 
 [profile.bench]

@@ -2,11 +2,11 @@ use crate::chess_engine::{bitboard::Bitboard, pieces::Piece};
 
 use super::ply::Ply;
 
-const BISHOP_STEP_DIRS: [fn(&Bitboard, &Bitboard, &Bitboard) -> Vec<Bitboard>; 4] = [
-    Bitboard::step_nw,
-    Bitboard::step_ne,
-    Bitboard::step_se,
-    Bitboard::step_sw,
+const BISHOP_STEP_DIRS: [fn(&Bitboard) -> Bitboard; 4] = [
+    Bitboard::shift_nw,
+    Bitboard::shift_ne,
+    Bitboard::shift_se,
+    Bitboard::shift_sw,
 ];
 
 impl Bitboard {

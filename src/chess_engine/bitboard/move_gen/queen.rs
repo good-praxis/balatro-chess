@@ -2,15 +2,15 @@ use crate::chess_engine::{bitboard::Bitboard, pieces::Piece};
 
 use super::ply::Ply;
 
-pub(crate) const QUEEN_STEP_DIRS: [fn(&Bitboard, &Bitboard, &Bitboard) -> Vec<Bitboard>; 8] = [
-    Bitboard::step_we,
-    Bitboard::step_nw,
-    Bitboard::step_no,
-    Bitboard::step_ne,
-    Bitboard::step_ea,
-    Bitboard::step_se,
-    Bitboard::step_so,
-    Bitboard::step_sw,
+pub(crate) const QUEEN_STEP_DIRS: [fn(&Bitboard) -> Bitboard; 8] = [
+    Bitboard::shift_we,
+    Bitboard::shift_nw,
+    Bitboard::shift_no,
+    Bitboard::shift_ne,
+    Bitboard::shift_ea,
+    Bitboard::shift_se,
+    Bitboard::shift_so,
+    Bitboard::shift_sw,
 ];
 
 impl Bitboard {

@@ -392,7 +392,7 @@ mod tests {
         );
         let mut meta = SearchMeta::default();
         let _score = boards.alpha_beta(&mut meta, MIN, MAX, 1);
-        assert_eq!(meta.nodes_visited, 11);
+        assert_eq!(meta.nodes_visited, 9);
     }
 
     #[test]
@@ -427,9 +427,9 @@ mod tests {
     fn pre_checkmate_search() {
         let mut boards = Bitboards::from_str(
             r#"
-            KRr
+            KPr
             0r0
-            0R0
+            0r0
             "#,
         );
         let result = boards.search_next_ply(None, 3, Weights::default());

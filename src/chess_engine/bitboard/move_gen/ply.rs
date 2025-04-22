@@ -1,10 +1,135 @@
-use ethnum::u256;
+use ethnum::{U256, u256};
 
 use crate::chess_engine::{
     bitboard::{BitIndex, Bitboard, Bitboards, all_pieces_by_color_from_ptr_iter, bitboard_idx},
     pieces::{Piece, PieceColor, PieceType, PieceWithBitboard},
 };
-use std::{cmp::Ordering, fmt::Display};
+use std::{cmp::Ordering, fmt::Display, slice::Iter};
+
+pub struct StepIter<'a> {
+    by_piece: Piece,
+    source: Bitboard,
+    current: Bitboard,
+    dirs_iter: Iter<'a, fn(&Bitboard) -> Bitboard>,
+    current_dir: fn(&Bitboard) -> Bitboard,
+    capture: bool,
+    finished: bool,
+    bitboards_ptr: *const Bitboard,
+    blocked: *const Bitboard,
+    capturable: *const Bitboard,
+}
+impl<'a> StepIter<'a> {
+    pub fn new(
+        by_piece: Piece,
+        source: &Bitboard,
+        dirs: &'a [fn(&Bitboard) -> Bitboard],
+        bitboards_ptr: *const Bitboard,
+        blocked: *const Bitboard,
+        capturable: *const Bitboard,
+    ) -> Self {
+        let mut dirs_iter = dirs.iter();
+        let current_dir = dirs_iter.next().unwrap();
+        Self {
+            by_piece,
+            source: *source,
+            current: *source,
+            dirs_iter,
+            current_dir: *current_dir,
+            capture: false,
+            finished: false,
+            bitboards_ptr,
+            blocked,
+            capturable,
+        }
+    }
+}
+impl<'a> Iterator for StepIter<'a> {
+    type Item = Ply;
+
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B,
+    {
+        let mut accum = init;
+        while !self.finished {
+            if let Some(ply) = self.next() {
+                accum = f(accum, ply);
+            } else {
+                break;
+            }
+        }
+        accum
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self.by_piece.0 {
+            PieceType::King => (0, Some(8)),
+            PieceType::Queen => (0, Some(64)),
+            PieceType::Rook => (0, Some(32)),
+            PieceType::Bishop => (0, Some(32)),
+            PieceType::Knight => (0, Some(8)),
+            PieceType::Pawn => (0, Some(6)),
+        }
+    }
+    fn next(&mut self) -> Option<Self::Item> {
+        // exit condition
+        if self.finished {
+            return None;
+        }
+
+        // Update current board
+        loop {
+            self.current = (self.current_dir)(&self.current);
+            unsafe {
+                if *self.current != 0 && *self.current & **self.blocked == 0 {
+                    if *self.current & **self.capturable != 0 {
+                        self.capture = true;
+                    }
+                    break;
+                } else {
+                    if let Some(&dir) = self.dirs_iter.next() {
+                        self.current = self.source;
+                        self.current_dir = dir;
+                        continue;
+                    }
+                    return None;
+                }
+            }
+        }
+
+        let mut capturing = None;
+        if self.capture {
+            // There is a capture present
+            let capturing_iter =
+                all_pieces_by_color_from_ptr_iter(self.bitboards_ptr, self.by_piece.1.next());
+            for PieceWithBitboard(piece, opposing_board) in capturing_iter {
+                let capture = self.current & opposing_board;
+                if *capture != 0 {
+                    capturing = Some((piece, capture.to_bit_idx()));
+                    break;
+                }
+            }
+
+            // Reset iterator metadata
+            if let Some(&dir) = self.dirs_iter.next() {
+                self.current = self.source;
+                (self.current_dir) = dir;
+                self.capture = false
+            } else {
+                self.finished = true;
+            }
+        }
+
+        Some(Ply {
+            moving_piece: self.by_piece,
+            from: self.source.to_bit_idx(),
+            to: self.current.to_bit_idx(),
+            capturing,
+            ..Default::default()
+        })
+    }
+}
 
 /// A classical chess move from either side.
 /// contains data for capturing, castling, promotions
@@ -95,7 +220,7 @@ impl Bitboard {
         dirs: &[fn(&Self) -> Self],
         blocked: &Self,
         capturable: &Self,
-        bitboard_ptr: *const Bitboard,
+        bitboards_ptr: *const Bitboard,
         by_piece: Piece,
     ) -> impl Iterator<Item = Ply> {
         dirs.iter()
@@ -106,7 +231,7 @@ impl Bitboard {
                 if *board & **capturable != 0 {
                     // There is a capture present
                     let capturing_iter =
-                        all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next());
+                        all_pieces_by_color_from_ptr_iter(bitboards_ptr, by_piece.1.next());
                     for PieceWithBitboard(piece, opposing_board) in capturing_iter {
                         let capture = board & opposing_board;
                         if *capture != 0 {
@@ -126,39 +251,15 @@ impl Bitboard {
     }
 
     /// Returns a iterator of all unblocked multi-step plys (sliding pieces)
-    pub fn multi_step_plys_in_dirs(
+    pub fn multi_step_plys_in_dirs<'a>(
         &self,
-        dirs: &[fn(&Self, &Self, &Self) -> Vec<Self>],
+        dirs: &'a [fn(&Self) -> Self],
         blocked: &Self,
         capturable: &Self,
-        bitboard_ptr: *const Bitboard,
+        bitboards_ptr: *const Bitboard,
         by_piece: Piece,
-    ) -> impl Iterator<Item = Ply> {
-        dirs.iter()
-            .map(|dir| dir(self, blocked, capturable))
-            .flatten()
-            .map(move |board| {
-                let mut capturing = None;
-                if *board & **capturable != 0 {
-                    // There is a capture present
-                    let capturing_iter =
-                        all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next());
-                    for PieceWithBitboard(piece, opposing_board) in capturing_iter {
-                        let capture = board & opposing_board;
-                        if *capture != 0 {
-                            capturing = Some((piece, capture.to_bit_idx()))
-                        }
-                    }
-                }
-
-                Ply {
-                    moving_piece: by_piece,
-                    from: self.to_bit_idx(),
-                    to: board.to_bit_idx(),
-                    capturing,
-                    ..Default::default()
-                }
-            })
+    ) -> StepIter<'a> {
+        StepIter::new(by_piece, &self, dirs, bitboards_ptr, blocked, capturable)
     }
 }
 

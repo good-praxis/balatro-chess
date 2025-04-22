@@ -2,11 +2,11 @@ use crate::chess_engine::{bitboard::Bitboard, pieces::Piece};
 
 use super::ply::Ply;
 
-const ROOK_STEP_DIRS: [fn(&Bitboard, &Bitboard, &Bitboard) -> Vec<Bitboard>; 4] = [
-    Bitboard::step_we,
-    Bitboard::step_no,
-    Bitboard::step_ea,
-    Bitboard::step_so,
+const ROOK_STEP_DIRS: [fn(&Bitboard) -> Bitboard; 4] = [
+    Bitboard::shift_we,
+    Bitboard::shift_no,
+    Bitboard::shift_ea,
+    Bitboard::shift_so,
 ];
 
 impl Bitboard {

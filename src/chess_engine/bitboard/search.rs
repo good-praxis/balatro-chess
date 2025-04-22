@@ -268,7 +268,7 @@ impl Bitboards {
                 }
             }
             if score >= beta {
-                return best_move;
+                break;
             }
         }
         if let Some(mut pv) = best_move.1 {

@@ -8,7 +8,18 @@ fn search_depth_1(boards: &mut Bitboards) {
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("search depth 1", |b| {
         b.iter(|| {
-            let mut boards = chess_engine::Game::default().boards;
+            let mut boards = chess_engine::bitboard::Bitboards::from_str(
+                r#"
+                RNB0KBNR
+                PPP0PPPP
+                000Q0000
+                q0000000
+                000P0000
+                00n0p000
+                pppp0ppp
+                r0b0kbnr
+                "#,
+            );
             search_depth_1(&mut boards);
         })
     });

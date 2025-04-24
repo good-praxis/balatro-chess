@@ -12,12 +12,6 @@ pipeline {
                 sh "~/.cargo/bin/cargo test"
             }
         }
-        stage('Miri') {
-            steps {
-                sh "~/.cargo/bin/cargo miri setup"
-                sh "MIRIFLAGS='-Zmiri-disable-stacked-borrows' ~/.cargo/bin/cargo miri test"
-            }
-        }
         stage('Clippy') {
             steps {
                 sh "~/.cargo/bin/cargo +nightly clippy --all"
@@ -28,6 +22,12 @@ pipeline {
                 // The build will fail if rustfmt thinks any changes are
                 // required.
                 sh "~/.cargo/bin/cargo +nightly fmt --all -- --write-mode diff"
+            }
+        }
+        stage('Miri') {
+            steps {
+                sh "~/.cargo/bin/cargo miri setup"
+                sh "MIRIFLAGS='-Zmiri-disable-stacked-borrows' ~/.cargo/bin/cargo miri test"
             }
         }
     }

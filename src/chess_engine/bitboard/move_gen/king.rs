@@ -19,7 +19,6 @@ impl Bitboard {
     /// Cumulative pseudolegal mask of king moves (no castling)
     pub fn king_move_mask(&self, blocked: &Self, _capturable: &Self) -> Self {
         self.king_moves(blocked, _capturable)
-            .into_iter()
             .reduce(|acc, e| acc | e)
             .unwrap_or(Bitboard(u256::ZERO))
     }
@@ -34,14 +33,18 @@ impl Bitboard {
         self.king_move_mask(blocked, _capturable)
     }
 
-    pub fn king_plys(
+    /// # Safety
+    /// requires a valid `bitboard_ptr` to the bitboard array
+    pub unsafe fn king_plys(
         &self,
         blocked: &Self,
         capturable: &Self,
         bitboard_ptr: *const Bitboard,
         piece: Piece,
     ) -> impl Iterator<Item = Ply> {
-        self.single_step_plys_in_dirs(&KING_DIRS, blocked, capturable, bitboard_ptr, piece)
+        unsafe {
+            self.single_step_plys_in_dirs(&KING_DIRS, blocked, capturable, bitboard_ptr, piece)
+        }
     }
 }
 
@@ -56,7 +59,7 @@ mod tests {
 
     #[test]
     fn king_move_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             00r
             0k0
@@ -65,7 +68,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_KING)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             kk0
             k0k
@@ -82,7 +85,7 @@ mod tests {
 
     #[test]
     fn king_move_mask_corner() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             k0
             00
@@ -90,7 +93,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_KING)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             0k
             kk
@@ -106,7 +109,7 @@ mod tests {
 
     #[test]
     fn king_move_arr_corner() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             k0
             00
@@ -125,7 +128,7 @@ mod tests {
 
     #[test]
     fn king_en_prise_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             000
             0k0
@@ -134,7 +137,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_KING)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             kkk
             k0k
@@ -151,7 +154,7 @@ mod tests {
 
     #[test]
     fn king_plys() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             00P
             0k0
@@ -160,14 +163,16 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_KING)];
 
-        let mut plys: BinaryHeap<Ply> = board
-            .king_plys(
-                &boards.blocked_mask_for_color(PieceColor::White),
-                &boards.all_pieces_by_color(PieceColor::Black),
-                boards.boards.as_ptr(),
-                WHITE_KING,
-            )
-            .collect();
+        let mut plys: BinaryHeap<Ply> = unsafe {
+            board
+                .king_plys(
+                    &boards.blocked_mask_for_color(PieceColor::White),
+                    &boards.all_pieces_by_color(PieceColor::Black),
+                    boards.boards.as_ptr(),
+                    WHITE_KING,
+                )
+                .collect()
+        };
         assert_eq!(plys.len(), 8);
         assert!(plys.pop().unwrap().capturing.is_some())
     }

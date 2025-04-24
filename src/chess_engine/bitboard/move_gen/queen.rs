@@ -35,14 +35,18 @@ impl Bitboard {
         self.queen_move_mask(blocked, capturable)
     }
 
-    pub fn queen_plys(
+    /// # Safety
+    /// requires a valid `bitboard_ptr` to the bitboard array
+    pub unsafe fn queen_plys(
         &self,
         blocked: &Self,
         capturable: &Self,
         bitboard_ptr: *const Bitboard,
         piece: Piece,
     ) -> impl Iterator<Item = Ply> {
-        self.multi_step_plys_in_dirs(&QUEEN_STEP_DIRS, blocked, capturable, bitboard_ptr, piece)
+        unsafe {
+            self.multi_step_plys_in_dirs(&QUEEN_STEP_DIRS, blocked, capturable, bitboard_ptr, piece)
+        }
     }
 }
 
@@ -57,7 +61,7 @@ mod tests {
 
     #[test]
     fn queen_move_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             0000P
             00000
@@ -68,7 +72,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_QUEEN)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             q0q0q
             0qqq0
@@ -87,7 +91,7 @@ mod tests {
 
     #[test]
     fn queen_en_prise_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             0000P
             00000
@@ -98,7 +102,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_QUEEN)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             q0q0q
             0qqq0
@@ -117,7 +121,7 @@ mod tests {
 
     #[test]
     fn queen_plys() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             0000P
             00000
@@ -128,14 +132,16 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_QUEEN)];
 
-        let mut plys: BinaryHeap<Ply> = board
-            .queen_plys(
-                &boards.blocked_mask_for_color(PieceColor::White),
-                &boards.all_pieces_by_color(PieceColor::Black),
-                boards.boards.as_ptr(),
-                WHITE_QUEEN,
-            )
-            .collect();
+        let mut plys: BinaryHeap<Ply> = unsafe {
+            board
+                .queen_plys(
+                    &boards.blocked_mask_for_color(PieceColor::White),
+                    &boards.all_pieces_by_color(PieceColor::Black),
+                    boards.boards.as_ptr(),
+                    WHITE_QUEEN,
+                )
+                .collect()
+        };
         assert_eq!(plys.len(), 16);
         assert!(plys.pop().unwrap().capturing.is_some())
     }

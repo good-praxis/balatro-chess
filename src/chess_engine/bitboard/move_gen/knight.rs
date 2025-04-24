@@ -19,7 +19,6 @@ impl Bitboard {
     /// Cumulative pseudolegal mask of knight moves
     pub fn knight_move_mask(&self, blocked: &Self, _capturable: &Self) -> Self {
         self.knight_moves(blocked, _capturable)
-            .into_iter()
             .reduce(|acc, e| acc | e)
             .unwrap_or(Self(u256::ZERO))
     }
@@ -38,14 +37,18 @@ impl Bitboard {
         self.knight_move_mask(blocked, capturable)
     }
 
-    pub fn knight_plys(
+    /// # Safety
+    /// requires a valid pointer to the bitboards array for `bitboards_ptr`
+    pub unsafe fn knight_plys(
         &self,
         blocked: &Self,
         capturable: &Self,
         bitboard_ptr: *const Bitboard,
         piece: Piece,
     ) -> impl Iterator<Item = Ply> {
-        self.single_step_plys_in_dirs(&KNIGHT_DIRS, blocked, capturable, bitboard_ptr, piece)
+        unsafe {
+            self.single_step_plys_in_dirs(&KNIGHT_DIRS, blocked, capturable, bitboard_ptr, piece)
+        }
     }
 }
 
@@ -60,7 +63,7 @@ mod tests {
 
     #[test]
     fn knight_move_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             00000
             0000p
@@ -71,7 +74,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_KNIGHT)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             0n0n0
             n0000
@@ -90,7 +93,7 @@ mod tests {
 
     #[test]
     fn knight_en_prise_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             00000
             00000
@@ -101,7 +104,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_KNIGHT)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             0n0n0
             n000n
@@ -120,7 +123,7 @@ mod tests {
 
     #[test]
     fn knight_plys() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             00000
             0000P
@@ -132,14 +135,16 @@ mod tests {
         let board = boards.boards[bitboard_idx(WHITE_KNIGHT)];
         let boards_ptr = boards.boards.as_ptr();
 
-        let mut plys: BinaryHeap<Ply> = board
-            .knight_plys(
-                &boards.blocked_mask_for_color(PieceColor::White),
-                &boards.all_pieces_by_color(PieceColor::Black),
-                boards_ptr,
-                WHITE_KNIGHT,
-            )
-            .collect();
+        let mut plys: BinaryHeap<Ply> = unsafe {
+            board
+                .knight_plys(
+                    &boards.blocked_mask_for_color(PieceColor::White),
+                    &boards.all_pieces_by_color(PieceColor::Black),
+                    boards_ptr,
+                    WHITE_KNIGHT,
+                )
+                .collect()
+        };
         assert_eq!(plys.len(), 8);
         assert!(plys.pop().unwrap().capturing.is_some())
     }

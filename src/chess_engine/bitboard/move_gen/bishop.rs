@@ -21,14 +21,24 @@ impl Bitboard {
         self.bishop_move_mask(blocked, capturable)
     }
 
-    pub fn bishop_plys(
+    /// # Safety
+    /// requires a valid pointer to the bitboards array for `bitboards_ptr`
+    pub unsafe fn bishop_plys(
         &self,
         blocked: &Self,
         capturable: &Self,
         bitboard_ptr: *const Bitboard,
         piece: Piece,
     ) -> impl Iterator<Item = Ply> {
-        self.multi_step_plys_in_dirs(&BISHOP_STEP_DIRS, blocked, capturable, bitboard_ptr, piece)
+        unsafe {
+            self.multi_step_plys_in_dirs(
+                &BISHOP_STEP_DIRS,
+                blocked,
+                capturable,
+                bitboard_ptr,
+                piece,
+            )
+        }
     }
 }
 
@@ -43,7 +53,7 @@ mod tests {
 
     #[test]
     fn bishop_move_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             p000P
             00000
@@ -54,7 +64,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             0000b
             0b0b0
@@ -73,7 +83,7 @@ mod tests {
 
     #[test]
     fn bishop_en_prise_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             0000P
             00000
@@ -84,7 +94,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             b000b
             0b0b0
@@ -103,7 +113,7 @@ mod tests {
 
     #[test]
     fn bishop_plys() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             0000P
             00000
@@ -114,14 +124,16 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_BISHOP)];
 
-        let mut plys: BinaryHeap<Ply> = board
-            .bishop_plys(
-                &boards.blocked_mask_for_color(PieceColor::White),
-                &boards.all_pieces_by_color(PieceColor::Black),
-                boards.boards.as_ptr(),
-                WHITE_BISHOP,
-            )
-            .collect();
+        let mut plys: BinaryHeap<Ply> = unsafe {
+            board
+                .bishop_plys(
+                    &boards.blocked_mask_for_color(PieceColor::White),
+                    &boards.all_pieces_by_color(PieceColor::Black),
+                    boards.boards.as_ptr(),
+                    WHITE_BISHOP,
+                )
+                .collect()
+        };
         assert_eq!(plys.len(), 8);
         assert!(plys.pop().unwrap().capturing.is_some())
     }

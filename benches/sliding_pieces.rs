@@ -8,7 +8,7 @@ fn sliding_pieces(boards: &mut Bitboards) {
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("sliding_pieces", |b| {
         b.iter(|| {
-            let mut boards = Bitboards::from_str(
+            let mut boards = Bitboards::new_from_str(
                 r#"
                 0000000000000000
                 0000000000000000

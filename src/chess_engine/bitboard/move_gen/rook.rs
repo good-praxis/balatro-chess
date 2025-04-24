@@ -21,14 +21,18 @@ impl Bitboard {
         self.rook_move_mask(blocked, capturable)
     }
 
-    pub fn rook_plys(
+    /// # Safety
+    /// requires a valid `bitboard_ptr` to the bitboard array
+    pub unsafe fn rook_plys(
         &self,
         blocked: &Self,
         capturable: &Self,
         bitboard_ptr: *const Bitboard,
         piece: Piece,
     ) -> impl Iterator<Item = Ply> {
-        self.multi_step_plys_in_dirs(&ROOK_STEP_DIRS, blocked, capturable, bitboard_ptr, piece)
+        unsafe {
+            self.multi_step_plys_in_dirs(&ROOK_STEP_DIRS, blocked, capturable, bitboard_ptr, piece)
+        }
     }
 }
 
@@ -43,7 +47,7 @@ mod tests {
 
     #[test]
     fn rook_move_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             00000
             00000
@@ -54,7 +58,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_ROOK)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             00r00
             00r00
@@ -73,7 +77,7 @@ mod tests {
 
     #[test]
     fn rook_en_prise_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             00000
             00000
@@ -84,7 +88,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_ROOK)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             00r00
             00r00
@@ -103,7 +107,7 @@ mod tests {
 
     #[test]
     fn rook_plys() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             00000
             00000
@@ -114,14 +118,16 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_ROOK)];
 
-        let mut plys: BinaryHeap<Ply> = board
-            .rook_plys(
-                &boards.blocked_mask_for_color(PieceColor::White),
-                &boards.all_pieces_by_color(PieceColor::Black),
-                boards.boards.as_ptr(),
-                WHITE_ROOK,
-            )
-            .collect();
+        let mut plys: BinaryHeap<Ply> = unsafe {
+            board
+                .rook_plys(
+                    &boards.blocked_mask_for_color(PieceColor::White),
+                    &boards.all_pieces_by_color(PieceColor::Black),
+                    boards.boards.as_ptr(),
+                    WHITE_ROOK,
+                )
+                .collect()
+        };
         assert_eq!(plys.len(), 8);
         assert!(plys.pop().unwrap().capturing.is_some())
     }

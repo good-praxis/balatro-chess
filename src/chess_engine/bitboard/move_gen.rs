@@ -202,7 +202,7 @@ mod tests {
     use super::*;
 
     fn king_board() -> Bitboard {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             000
             0k0
@@ -278,7 +278,7 @@ mod tests {
     }
 
     fn knight_board() -> Bitboard {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             00000
             00000
@@ -356,12 +356,12 @@ mod tests {
 
     #[test]
     fn fill_west() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             R00r
             "#,
         );
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             rrr0
             "#,
@@ -376,12 +376,12 @@ mod tests {
 
     #[test]
     fn fill_east() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             r00R
             "#,
         );
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             0rrr
             "#,
@@ -396,7 +396,7 @@ mod tests {
 
     #[test]
     fn fill_north() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             R
             0
@@ -404,7 +404,7 @@ mod tests {
             r
             "#,
         );
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             r
             r
@@ -422,7 +422,7 @@ mod tests {
 
     #[test]
     fn fill_south() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             r
             0
@@ -430,7 +430,7 @@ mod tests {
             R
             "#,
         );
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             0
             r
@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn fill_northwest() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             B000
             0000
@@ -456,7 +456,7 @@ mod tests {
             000b
             "#,
         );
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             b000
             0b00
@@ -474,7 +474,7 @@ mod tests {
 
     #[test]
     fn fill_northeast() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             000B
             0000
@@ -482,7 +482,7 @@ mod tests {
             b000
             "#,
         );
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             000b
             00b0
@@ -500,7 +500,7 @@ mod tests {
 
     #[test]
     fn fill_southeast() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             b000
             0000
@@ -508,7 +508,7 @@ mod tests {
             000B
             "#,
         );
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             0000
             0b00
@@ -526,7 +526,7 @@ mod tests {
 
     #[test]
     fn fill_southwest() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             000b
             0000
@@ -534,7 +534,7 @@ mod tests {
             B000
             "#,
         );
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             0000
             00b0
@@ -552,7 +552,7 @@ mod tests {
 
     #[test]
     fn step_west() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             R00r
             "#,
@@ -566,7 +566,7 @@ mod tests {
 
     #[test]
     fn step_east() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             r00R
             "#,
@@ -580,7 +580,7 @@ mod tests {
 
     #[test]
     fn step_north() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             R
             0
@@ -597,7 +597,7 @@ mod tests {
 
     #[test]
     fn step_south() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             r
             0
@@ -614,7 +614,7 @@ mod tests {
 
     #[test]
     fn step_northwest() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             B000
             0000
@@ -631,7 +631,7 @@ mod tests {
 
     #[test]
     fn step_northeast() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             000B
             0000
@@ -648,7 +648,7 @@ mod tests {
 
     #[test]
     fn step_southeast() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             b000
             0000
@@ -665,7 +665,7 @@ mod tests {
 
     #[test]
     fn step_southwest() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             000b
             0000

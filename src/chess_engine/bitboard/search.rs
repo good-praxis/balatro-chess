@@ -119,7 +119,7 @@ impl Bitboards {
 
         for color in PieceColor::iter() {
             let pawns =
-                self.boards[bitboard_idx(Piece(PieceType::Pawn, color))].to_column_representation();
+                self.boards[bitboard_idx(Piece(PieceType::Pawn, color))].as_column_representation();
 
             if pawns.trailing_ones() == 1 {
                 isolated_pawns_count += color.score_sign()
@@ -147,14 +147,13 @@ impl Bitboards {
                 .all_legal_plys_by_color::<Vec<Ply>>(PieceColor::Black)
                 .len() as i32;
 
-        let score = (material_score + pawn_score + (meta.weights.movement * move_score))
-            * meta.last_ply_by().next().score_sign();
+        (material_score + pawn_score + (meta.weights.movement * move_score))
+            * meta.last_ply_by().next().score_sign()
 
         // self.evaluation_table
         //     .lock()
         //     .unwrap()
         //     .insert(*self.zobrist_hash, score);
-        score
     }
 
     fn quiescence_search(&mut self, meta: &mut SearchMeta, mut alpha: i32, beta: i32) -> i32 {
@@ -292,8 +291,8 @@ impl Bitboards {
         weights: Weights,
     ) -> (i32, Option<Ply>, u64) {
         let mut meta = SearchMeta::with_weights(weights);
-        if last_ply.is_some() {
-            meta.current_tree.push(last_ply.unwrap());
+        if let Some(last_ply) = last_ply {
+            meta.current_tree.push(last_ply);
         }
         let result = self.iterative_deepening(&mut meta, depth);
         (result.0, result.1, meta.nodes_visited)
@@ -327,7 +326,7 @@ mod tests {
 
     #[test]
     fn evaluate_material_score() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
             ppP
             PPP
@@ -339,7 +338,7 @@ mod tests {
 
     #[test]
     fn evaluate_movement_score() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
             00000
             00000
@@ -354,7 +353,7 @@ mod tests {
 
     #[test]
     fn evaluate_isolated_pawns_score() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
             PPPPPPPP
             00000000
@@ -370,7 +369,7 @@ mod tests {
 
     #[test]
     fn quiescence_search_until_quiet_position() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
             0P00
             R00R
@@ -385,7 +384,7 @@ mod tests {
 
     #[test]
     fn alpha_beta_search_nodes_visited() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
             0QR
             q00
@@ -399,7 +398,7 @@ mod tests {
 
     #[test]
     fn alpha_beta_search_expected_result() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
             0QR
             q00
@@ -414,7 +413,7 @@ mod tests {
 
     #[test]
     fn checkmate_search() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
             kR0
             0R0
@@ -427,7 +426,7 @@ mod tests {
 
     #[test]
     fn pre_checkmate_search() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
             KRr
             0r0

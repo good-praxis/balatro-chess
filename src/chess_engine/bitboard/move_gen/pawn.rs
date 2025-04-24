@@ -34,37 +34,39 @@ impl Bitboard {
         mask
     }
 
-    pub fn pawn_plys<'a>(
-        &'a self,
+    /// # Safety
+    /// This functions requires a valid pointer to the bitboard array for `bitboard_ptr`,
+    pub unsafe fn pawn_plys(
+        &self,
         blocked: &Self,
         capturable: &Self,
         bitboard_ptr: *const Bitboard,
         color: PieceColor,
-        unmoved_pieces: *const Bitboard,
-        en_passant: *const Bitboard,
+        unmoved_pieces: Self,
+        en_passant: Self,
     ) -> impl Iterator<Item = Ply> {
         let dir = pawn_dir(color);
         let mut moves = vec![];
 
-        let bit_idx = self.to_bit_idx();
+        let bit_idx = self.as_bit_idx();
 
         let normal = dir(self);
         if *normal != 0 && *normal & **blocked == 0 && *normal & **capturable == 0 {
             moves.push(Ply {
                 moving_piece: Piece(PieceType::Pawn, color),
                 from: bit_idx,
-                to: normal.to_bit_idx(),
+                to: normal.as_bit_idx(),
                 ..Default::default()
             });
 
             // Normal push was possible, check for double
-            if **self & unsafe { **unmoved_pieces } != 0 {
+            if **self & *unmoved_pieces != 0 {
                 let double = dir(&normal);
                 if *double != 0 && *double & **blocked == 0 && *normal & **capturable == 0 {
                     moves.push(Ply {
                         moving_piece: Piece(PieceType::Pawn, color),
                         from: bit_idx,
-                        to: double.to_bit_idx(),
+                        to: double.as_bit_idx(),
                         en_passant_board: Some(normal),
                         ..Default::default()
                     });
@@ -79,33 +81,34 @@ impl Bitboard {
             let capture = dir(&normal);
             if *capture & **capturable != 0 {
                 // There is a capture present
-                let capturable_iter = all_pieces_by_color_from_ptr_iter(bitboard_ptr, color.next());
+                let capturable_iter =
+                    unsafe { all_pieces_by_color_from_ptr_iter(bitboard_ptr, color.next()) };
                 for PieceWithBitboard(piece_type, opposing_board) in capturable_iter {
                     let capture = capture & opposing_board;
                     if *capture != 0 {
-                        capturing = Some((piece_type, capture.to_bit_idx()))
+                        capturing = Some((piece_type, capture.as_bit_idx()))
                     }
                 }
                 moves.push(Ply {
                     moving_piece: Piece(PieceType::Pawn, color),
                     from: bit_idx,
-                    to: capture.to_bit_idx(),
+                    to: capture.as_bit_idx(),
                     capturing,
                     ..Default::default()
                 })
             }
 
             // en passant
-            if unsafe { **en_passant } != 0 {
+            if *en_passant != 0 {
                 let capture = dir(&normal);
-                if *capture & unsafe { **en_passant } != 0 {
+                if *capture & *en_passant != 0 {
                     moves.push(Ply {
                         moving_piece: Piece(PieceType::Pawn, color),
                         from: bit_idx,
-                        to: capture.to_bit_idx(),
+                        to: capture.as_bit_idx(),
                         capturing: Some((
                             Piece(PieceType::Pawn, color.next()),
-                            pawn_dir(color.next())(&capture).to_bit_idx(),
+                            pawn_dir(color.next())(&capture).as_bit_idx(),
                         )),
                         ..Default::default()
                     });
@@ -128,7 +131,7 @@ mod tests {
 
     #[test]
     fn white_pawn_en_prise_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             000
             0p0
@@ -136,7 +139,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_PAWN)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             p0p
             000
@@ -152,7 +155,7 @@ mod tests {
 
     #[test]
     fn black_pawn_en_prise_mask() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             0P0
             000
@@ -160,7 +163,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(BLACK_PAWN)];
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
             000
             p0p
@@ -176,7 +179,7 @@ mod tests {
 
     #[test]
     fn pawn_plys() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             000
             P00
@@ -185,23 +188,25 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_PAWN)];
 
-        let mut plys: BinaryHeap<Ply> = board
-            .pawn_plys(
-                &boards.blocked_mask_for_color(PieceColor::White),
-                &boards.all_pieces_by_color(PieceColor::Black),
-                boards.boards.as_ptr(),
-                PieceColor::White,
-                &boards.unmoved_pieces,
-                &boards.en_passant,
-            )
-            .collect();
+        let mut plys: BinaryHeap<Ply> = unsafe {
+            board
+                .pawn_plys(
+                    &boards.blocked_mask_for_color(PieceColor::White),
+                    &boards.all_pieces_by_color(PieceColor::Black),
+                    boards.boards.as_ptr(),
+                    PieceColor::White,
+                    boards.unmoved_pieces,
+                    boards.en_passant,
+                )
+                .collect()
+        };
         assert_eq!(plys.len(), 3);
         assert!(plys.pop().unwrap().capturing.is_some())
     }
 
     #[test]
     fn pawn_plys_en_passant() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             pP0
             000
@@ -210,7 +215,7 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(BLACK_PAWN)];
 
-        let en_passant = Bitboards::from_str(
+        let en_passant = Bitboards::new_from_str(
             r#"
             000
             p00
@@ -219,23 +224,25 @@ mod tests {
         );
         let en_passant = en_passant.boards[bitboard_idx(WHITE_PAWN)];
 
-        let mut plys: BinaryHeap<Ply> = board
-            .pawn_plys(
-                &boards.blocked_mask_for_color(PieceColor::Black),
-                &boards.all_pieces_by_color(PieceColor::White),
-                boards.boards.as_ptr(),
-                PieceColor::Black,
-                &boards.unmoved_pieces,
-                &en_passant,
-            )
-            .collect();
+        let mut plys: BinaryHeap<Ply> = unsafe {
+            board
+                .pawn_plys(
+                    &boards.blocked_mask_for_color(PieceColor::Black),
+                    &boards.all_pieces_by_color(PieceColor::White),
+                    boards.boards.as_ptr(),
+                    PieceColor::Black,
+                    boards.unmoved_pieces,
+                    en_passant,
+                )
+                .collect()
+        };
         assert_eq!(plys.len(), 3);
         assert!(plys.pop().unwrap().capturing.is_some())
     }
 
     #[test]
     fn pawn_cannot_step_on_king() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             K
             p
@@ -243,16 +250,18 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_PAWN)];
 
-        let plys: Vec<Ply> = board
-            .pawn_plys(
-                &boards.blocked_mask_for_color(PieceColor::White),
-                &boards.all_pieces_by_color(PieceColor::Black),
-                boards.boards.as_ptr(),
-                PieceColor::White,
-                &boards.unmoved_pieces,
-                &boards.en_passant,
-            )
-            .collect();
+        let plys: Vec<Ply> = unsafe {
+            board
+                .pawn_plys(
+                    &boards.blocked_mask_for_color(PieceColor::White),
+                    &boards.all_pieces_by_color(PieceColor::Black),
+                    boards.boards.as_ptr(),
+                    PieceColor::White,
+                    boards.unmoved_pieces,
+                    boards.en_passant,
+                )
+                .collect()
+        };
         assert_eq!(plys.len(), 0);
     }
 }

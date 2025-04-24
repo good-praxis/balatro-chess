@@ -8,7 +8,7 @@ fn search_depth_5(boards: &mut Bitboards) {
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("search depth 5", |b| {
         b.iter(|| {
-            let mut boards = chess_engine::bitboard::Bitboards::from_str(
+            let mut boards = chess_engine::bitboard::Bitboards::new_from_str(
                 r#"
                 RNB0KBNR
                 PPP0PPPP

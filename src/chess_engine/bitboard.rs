@@ -39,7 +39,7 @@ impl From<u32> for BitIndex {
 impl From<Bitboard> for BitIndex {
     #[inline]
     fn from(value: Bitboard) -> Self {
-        value.to_bit_idx()
+        value.as_bit_idx()
     }
 }
 
@@ -48,7 +48,7 @@ impl Display for BitIndex {
         // We know that the board will grow in row length to the 'right',
         // i*16 will always be the first used file, and therefore always be 'A'
         // so we can always know the file label by it's `x % 16` result
-        let file = ('A' as u8 + (**self % 16) as u8) as char;
+        let file = (b'A' + (**self % 16) as u8) as char;
 
         // We flip convention here, defining rank to be counted from top
         // so that we can naturally grow the board 'downwards'. This lets us
@@ -103,6 +103,7 @@ impl Bitboard {
         *self |= (value as u128) << *index;
     }
 
+    #[allow(dead_code)]
     #[inline]
     pub fn get<T: std::ops::Deref<Target = u32>>(&self, index: T) -> bool {
         **self & (1 << *index) != 0
@@ -110,19 +111,19 @@ impl Bitboard {
 
     /// Gets the position for the
     #[inline]
-    pub fn to_bit_idx(&self) -> BitIndex {
+    pub fn as_bit_idx(&self) -> BitIndex {
         self.trailing_zeros().into()
     }
 
     /// Reduce bitboard to a column-wise representation by or-ing 16-bit words
-    pub fn to_column_representation(&self) -> u16 {
+    pub fn as_column_representation(&self) -> u16 {
         let bytes = self.to_be_bytes();
         let mut words = [0u16; 16];
-        for i in 0..16 {
+        for (i, word) in words.iter_mut().enumerate() {
             let offset = i * 2;
-            words[i] = bytes[offset] as u16;
-            words[i] <<= 8;
-            words[i] += bytes[offset + 1] as u16;
+            *word = bytes[offset] as u16;
+            *word <<= 8;
+            *word += bytes[offset + 1] as u16;
         }
 
         words.iter().fold(0, |acc, e| acc | e)
@@ -170,19 +171,19 @@ impl Display for Bitboards {
         let mailbox = self.to_mailbox();
         let mut board_str = " ".to_string();
         for i in 0..self.limits.trailing_ones() {
-            board_str.push(('A' as u8 + i as u8) as char);
+            board_str.push((b'A' + i as u8) as char);
         }
 
         for (i, piece) in mailbox.iter().enumerate() {
-            let rank = ('1' as u8 + (i as u32 / self.limits.trailing_ones()) as u8) as char;
+            let rank = (b'1' + (i as u32 / self.limits.trailing_ones()) as u8) as char;
             if i as u32 % self.limits.trailing_ones() == 0 {
                 board_str.push('\n');
                 board_str.push(rank);
             }
             if let Some(piece) = piece {
-                board_str.push(piece.to_char());
+                board_str.push(piece.as_char());
             } else {
-                board_str.push_str("-");
+                board_str.push('-');
             }
         }
         write!(f, "{}", board_str)
@@ -190,7 +191,7 @@ impl Display for Bitboards {
 }
 
 impl Bitboards {
-    pub fn from_str(input: &str) -> Self {
+    pub fn new_from_str(input: &str) -> Self {
         let mut boards = [Bitboard(u256::ZERO); PIECE_COMBO_COUNT];
         let mut piece_list = vec![vec![]; PIECE_COMBO_COUNT];
         let mut limits = Bitboard(u256::ZERO);
@@ -281,11 +282,11 @@ impl Bitboards {
         })
     }
 
-    pub fn all_pieces(&self) -> Bitboard {
-        self.boards
-            .iter()
-            .fold(Bitboard(u256::ZERO), |acc, e| acc | *e)
-    }
+    // pub fn all_pieces(&self) -> Bitboard {
+    //     self.boards
+    //         .iter()
+    //         .fold(Bitboard(u256::ZERO), |acc, e| acc | *e)
+    // }
 
     pub fn all_pieces_by_color(&self, color: PieceColor) -> Bitboard {
         let mut board = Bitboard(u256::ZERO);
@@ -300,7 +301,6 @@ impl Bitboards {
         !self.limits | self.all_pieces_by_color(color)
     }
 
-    ///
     pub fn en_prise_by_color(&self, color: PieceColor) -> Bitboard {
         let mut en_prise_table = self.en_prise_table.lock().unwrap();
         if let Some(en_prise) = en_prise_table.get(&(*self.zobrist_hash, color as u8)) {
@@ -346,51 +346,53 @@ impl Bitboards {
                 let capturable = &self.all_pieces_by_color(color.next());
                 let bitboard_ptr = self.boards.as_ptr();
                 let piece = Piece(piece_type, color);
-                match piece_type {
-                    PieceType::King => {
-                        coll.extend(legality_filter(
-                            board.king_plys(blocked, capturable, bitboard_ptr, piece),
-                            self,
-                        ));
-                    }
-                    PieceType::Queen => {
-                        coll.extend(legality_filter(
-                            board.queen_plys(blocked, capturable, bitboard_ptr, piece),
-                            self,
-                        ));
-                    }
-                    PieceType::Rook => {
-                        coll.extend(legality_filter(
-                            board.rook_plys(blocked, capturable, bitboard_ptr, piece),
-                            self,
-                        ));
-                    }
+                unsafe {
+                    match piece_type {
+                        PieceType::King => {
+                            coll.extend(legality_filter(
+                                board.king_plys(blocked, capturable, bitboard_ptr, piece),
+                                self,
+                            ));
+                        }
+                        PieceType::Queen => {
+                            coll.extend(legality_filter(
+                                board.queen_plys(blocked, capturable, bitboard_ptr, piece),
+                                self,
+                            ));
+                        }
+                        PieceType::Rook => {
+                            coll.extend(legality_filter(
+                                board.rook_plys(blocked, capturable, bitboard_ptr, piece),
+                                self,
+                            ));
+                        }
 
-                    PieceType::Bishop => {
-                        coll.extend(legality_filter(
-                            board.bishop_plys(blocked, capturable, bitboard_ptr, piece),
-                            self,
-                        ));
-                    }
-                    PieceType::Knight => {
-                        coll.extend(legality_filter(
-                            board.knight_plys(blocked, capturable, bitboard_ptr, piece),
-                            self,
-                        ));
-                    }
+                        PieceType::Bishop => {
+                            coll.extend(legality_filter(
+                                board.bishop_plys(blocked, capturable, bitboard_ptr, piece),
+                                self,
+                            ));
+                        }
+                        PieceType::Knight => {
+                            coll.extend(legality_filter(
+                                board.knight_plys(blocked, capturable, bitboard_ptr, piece),
+                                self,
+                            ));
+                        }
 
-                    PieceType::Pawn => coll.extend(legality_filter(
-                        board.pawn_plys(
-                            blocked,
-                            capturable,
-                            bitboard_ptr,
-                            color,
-                            &raw const self.unmoved_pieces,
-                            &raw const self.en_passant,
-                        ),
-                        self,
-                    )),
-                };
+                        PieceType::Pawn => coll.extend(legality_filter(
+                            board.pawn_plys(
+                                blocked,
+                                capturable,
+                                bitboard_ptr,
+                                color,
+                                self.unmoved_pieces,
+                                self.en_passant,
+                            ),
+                            self,
+                        )),
+                    };
+                }
             }
             coll
         })
@@ -409,76 +411,78 @@ impl Bitboards {
                 let capturable = &self.all_pieces_by_color(color.next());
                 let bitboards_ptr = self.boards.as_ptr();
                 let piece = Piece(piece_type, color);
-                match piece_type {
-                    PieceType::King => {
-                        coll.extend(legality_filter(
-                            captures_only(board.king_plys(
-                                blocked,
-                                capturable,
-                                bitboards_ptr,
-                                piece,
-                            )),
-                            self,
-                        ));
-                    }
-                    PieceType::Queen => {
-                        coll.extend(legality_filter(
-                            captures_only(board.queen_plys(
-                                blocked,
-                                capturable,
-                                bitboards_ptr,
-                                piece,
-                            )),
-                            self,
-                        ));
-                    }
-                    PieceType::Rook => {
-                        coll.extend(legality_filter(
-                            captures_only(board.rook_plys(
-                                blocked,
-                                capturable,
-                                bitboards_ptr,
-                                piece,
-                            )),
-                            self,
-                        ));
-                    }
+                unsafe {
+                    match piece_type {
+                        PieceType::King => {
+                            coll.extend(legality_filter(
+                                captures_only(board.king_plys(
+                                    blocked,
+                                    capturable,
+                                    bitboards_ptr,
+                                    piece,
+                                )),
+                                self,
+                            ));
+                        }
+                        PieceType::Queen => {
+                            coll.extend(legality_filter(
+                                captures_only(board.queen_plys(
+                                    blocked,
+                                    capturable,
+                                    bitboards_ptr,
+                                    piece,
+                                )),
+                                self,
+                            ));
+                        }
+                        PieceType::Rook => {
+                            coll.extend(legality_filter(
+                                captures_only(board.rook_plys(
+                                    blocked,
+                                    capturable,
+                                    bitboards_ptr,
+                                    piece,
+                                )),
+                                self,
+                            ));
+                        }
 
-                    PieceType::Bishop => {
-                        coll.extend(legality_filter(
-                            captures_only(board.bishop_plys(
-                                blocked,
-                                capturable,
-                                bitboards_ptr,
-                                piece,
-                            )),
-                            self,
-                        ));
-                    }
-                    PieceType::Knight => {
-                        coll.extend(legality_filter(
-                            captures_only(board.knight_plys(
-                                blocked,
-                                capturable,
-                                bitboards_ptr,
-                                piece,
-                            )),
-                            self,
-                        ));
-                    }
+                        PieceType::Bishop => {
+                            coll.extend(legality_filter(
+                                captures_only(board.bishop_plys(
+                                    blocked,
+                                    capturable,
+                                    bitboards_ptr,
+                                    piece,
+                                )),
+                                self,
+                            ));
+                        }
+                        PieceType::Knight => {
+                            coll.extend(legality_filter(
+                                captures_only(board.knight_plys(
+                                    blocked,
+                                    capturable,
+                                    bitboards_ptr,
+                                    piece,
+                                )),
+                                self,
+                            ));
+                        }
 
-                    PieceType::Pawn => coll.extend(legality_filter(
-                        captures_only(board.pawn_plys(
-                            blocked,
-                            capturable,
-                            bitboards_ptr,
-                            color,
-                            &raw const self.unmoved_pieces,
-                            &raw const self.en_passant,
+                        PieceType::Pawn => coll.extend(legality_filter(
+                            captures_only(board.pawn_plys(
+                                blocked,
+                                capturable,
+                                bitboards_ptr,
+                                color,
+                                self.unmoved_pieces,
+                                self.en_passant,
+                            )),
+                            self,
                         )),
-                        self,
-                    )),
-                };
+                    };
+                }
             }
             coll
         })
@@ -486,7 +490,10 @@ impl Bitboards {
 }
 
 /// Primarily used when we don't want a full mask of all pieces, but want to determine which piece we are capturing
-pub fn all_pieces_by_color_from_ptr_iter(
+///
+/// # Safety
+/// This function dereferences a const pointer for the bitboard array at the bitboard position derived form `bitboard_idx(piece: Piece)`
+pub unsafe fn all_pieces_by_color_from_ptr_iter(
     boards: *const Bitboard,
     color: PieceColor,
 ) -> impl Iterator<Item = PieceWithBitboard> + Clone {
@@ -531,7 +538,7 @@ mod tests {
 
     #[test]
     fn limits_amount_from_string() {
-        let bitboards = Bitboards::from_str(
+        let bitboards = Bitboards::new_from_str(
             r#"
         RK00
         0000
@@ -580,14 +587,14 @@ mod tests {
         assert_eq!(p[bitboard_idx(BLACK_PAWN)].len(), 8);
     }
 
-    #[test]
-    fn all_pieces() {
-        let game = Game::default();
-        let bitboards = game.boards;
+    // #[test]
+    // fn all_pieces() {
+    //     let game = Game::default();
+    //     let bitboards = game.boards;
 
-        let all_pieces = bitboards.all_pieces();
-        assert_eq!(all_pieces.count_ones(), 32);
-    }
+    //     let all_pieces = bitboards.all_pieces();
+    //     assert_eq!(all_pieces.count_ones(), 32);
+    // }
 
     #[test]
     fn all_pieces_by_color() {
@@ -611,7 +618,7 @@ mod tests {
     fn bitboard_to_bit_idx() {
         let mut bitboard = Bitboard(0u32.into());
         bitboard.set(30.into(), true);
-        assert_eq!(bitboard.to_bit_idx(), 30.into());
+        assert_eq!(bitboard.as_bit_idx(), 30.into());
     }
 
     #[test]
@@ -619,7 +626,7 @@ mod tests {
         let game = Game::default();
         let bitboard = game.boards;
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
         00000000
         00000000
@@ -650,7 +657,7 @@ mod tests {
 
     #[test]
     fn all_moves_by_sites_complex() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
         00000
         00k00
@@ -665,7 +672,7 @@ mod tests {
 
     #[test]
     fn all_captures_by_sites_complex() {
-        let mut boards = Bitboards::from_str(
+        let mut boards = Bitboards::new_from_str(
             r#"
         00000
         00k00
@@ -680,7 +687,7 @@ mod tests {
 
     #[test]
     fn to_mailbox() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
         p00
         BKk
@@ -708,7 +715,7 @@ mod tests {
 
     #[test]
     fn test_column_representation() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
         00000p00
         00p00000
@@ -720,13 +727,13 @@ mod tests {
         );
         let expect: u16 = 0b00111101;
         let pawns = boards.boards[bitboard_idx(WHITE_PAWN)];
-        let column_rep = pawns.to_column_representation();
+        let column_rep = pawns.as_column_representation();
         assert_eq!(column_rep, expect);
     }
 
     #[test]
     fn test_column_representation_full_width() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
         00000p000000p000
         00p000000000000p
@@ -738,7 +745,7 @@ mod tests {
         );
         let expect: u16 = 0b1001000000111101;
         let pawns = boards.boards[bitboard_idx(WHITE_PAWN)];
-        let column_rep = pawns.to_column_representation();
+        let column_rep = pawns.as_column_representation();
         dbg!(format!("{:b}\n{:b}", column_rep, expect));
         assert_eq!(column_rep, expect);
     }

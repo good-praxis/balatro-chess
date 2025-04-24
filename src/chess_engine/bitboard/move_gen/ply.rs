@@ -21,12 +21,12 @@ pub struct Ply {
 
 impl Display for Ply {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let piece = self.moving_piece.to_char();
+        let piece = self.moving_piece.as_char();
         let from = self.from.to_string();
         let to = self.to.to_string();
         let mut capture = "".to_string();
         if let Some((captured, _)) = self.capturing {
-            capture.push_str(&format!(" x{}", captured.to_char()));
+            capture.push_str(&format!(" x{}", captured.as_char()));
         }
 
         // Non-standard representation, but fully detailed
@@ -36,29 +36,28 @@ impl Display for Ply {
 
 impl PartialOrd for Ply {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        // PV first
-        match (self.pv_move, other.pv_move) {
-            (true, false) => return Some(Ordering::Greater),
-            (false, true) => return Some(Ordering::Less),
-            _ => (),
-        }
-
-        // using MVV_LVA (Most Valuable Victim, Least Valuable Attacker)
-        match (self.capturing, other.capturing) {
-            (None, Some(_)) => return Some(Ordering::Less),
-            (Some(_), None) => return Some(Ordering::Greater),
-            (None, None) => return Some(self.moving_piece.0.cmp(&other.moving_piece.0)),
-            _ => Some(
-                self.capture_sorting_value()
-                    .cmp(&other.capture_sorting_value()),
-            ),
-        }
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Ply {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        // PV first
+        match (self.pv_move, other.pv_move) {
+            (true, false) => return Ordering::Greater,
+            (false, true) => return Ordering::Less,
+            _ => (),
+        }
+
+        // using MVV_LVA (Most Valuable Victim, Least Valuable Attacker)
+        match (self.capturing, other.capturing) {
+            (None, Some(_)) => Ordering::Less,
+            (Some(_), None) => Ordering::Greater,
+            (None, None) => self.moving_piece.0.cmp(&other.moving_piece.0),
+            _ => self
+                .capture_sorting_value()
+                .cmp(&other.capture_sorting_value()),
+        }
     }
 }
 
@@ -81,7 +80,7 @@ impl Ply {
                 PieceType::Pawn => 5,
                 _ => 0,
             };
-            return victim_value + attacker_value;
+            victim_value + attacker_value
         } else {
             0
         }
@@ -90,7 +89,11 @@ impl Ply {
 
 impl Bitboard {
     /// Returns a iterator of all unblocked single-step plys
-    pub fn single_step_plys_in_dirs(
+    ///
+    /// # Safety
+    /// Will require `bitboard_ptr` to be valid until all movement generation has been done.
+    /// The pointer needs to be the Bitboards array of Bitboards
+    pub unsafe fn single_step_plys_in_dirs(
         &self,
         dirs: &[fn(&Self) -> Self],
         blocked: &Self,
@@ -105,20 +108,21 @@ impl Bitboard {
                 let mut capturing = None;
                 if *board & **capturable != 0 {
                     // There is a capture present
-                    let capturing_iter =
-                        all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next());
+                    let capturing_iter = unsafe {
+                        all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next())
+                    };
                     for PieceWithBitboard(piece, opposing_board) in capturing_iter {
                         let capture = board & opposing_board;
                         if *capture != 0 {
-                            capturing = Some((piece, capture.to_bit_idx()))
+                            capturing = Some((piece, capture.as_bit_idx()))
                         }
                     }
                 }
 
                 Ply {
                     moving_piece: by_piece,
-                    from: self.to_bit_idx(),
-                    to: board.to_bit_idx(),
+                    from: self.as_bit_idx(),
+                    to: board.as_bit_idx(),
                     capturing,
                     ..Default::default()
                 }
@@ -126,7 +130,11 @@ impl Bitboard {
     }
 
     /// Returns a iterator of all unblocked multi-step plys (sliding pieces)
-    pub fn multi_step_plys_in_dirs(
+    ///
+    /// # Safety
+    /// Will require `bitboard_ptr` to be valid until all movement generation has been done.
+    /// The pointer needs to be the Bitboards array of Bitboards
+    pub unsafe fn multi_step_plys_in_dirs(
         &self,
         dirs: &[fn(&Self, &Self, &Self) -> Vec<Self>],
         blocked: &Self,
@@ -135,26 +143,26 @@ impl Bitboard {
         by_piece: Piece,
     ) -> impl Iterator<Item = Ply> {
         dirs.iter()
-            .map(|dir| dir(self, blocked, capturable))
-            .flatten()
+            .flat_map(|dir| dir(self, blocked, capturable))
             .map(move |board| {
                 let mut capturing = None;
                 if *board & **capturable != 0 {
                     // There is a capture present
-                    let capturing_iter =
-                        all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next());
+                    let capturing_iter = unsafe {
+                        all_pieces_by_color_from_ptr_iter(bitboard_ptr, by_piece.1.next())
+                    };
                     for PieceWithBitboard(piece, opposing_board) in capturing_iter {
                         let capture = board & opposing_board;
                         if *capture != 0 {
-                            capturing = Some((piece, capture.to_bit_idx()))
+                            capturing = Some((piece, capture.as_bit_idx()))
                         }
                     }
                 }
 
                 Ply {
                     moving_piece: by_piece,
-                    from: self.to_bit_idx(),
-                    to: board.to_bit_idx(),
+                    from: self.as_bit_idx(),
+                    to: board.as_bit_idx(),
                     capturing,
                     ..Default::default()
                 }
@@ -332,7 +340,7 @@ mod tests {
 
     #[test]
     fn single_step_plys() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             k0
             0P
@@ -340,15 +348,17 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_KING)];
 
-        let mut plys = board
-            .single_step_plys_in_dirs(
-                &KING_DIRS,
-                &boards.blocked_mask_for_color(PieceColor::White),
-                &boards.all_pieces_by_color(PieceColor::Black),
-                boards.boards.as_ptr(),
-                WHITE_KING,
-            )
-            .collect::<BinaryHeap<Ply>>();
+        let mut plys = unsafe {
+            board
+                .single_step_plys_in_dirs(
+                    &KING_DIRS,
+                    &boards.blocked_mask_for_color(PieceColor::White),
+                    &boards.all_pieces_by_color(PieceColor::Black),
+                    boards.boards.as_ptr(),
+                    WHITE_KING,
+                )
+                .collect::<BinaryHeap<Ply>>()
+        };
 
         assert_eq!(plys.len(), 3);
         assert!(plys.pop().unwrap().capturing.is_some())
@@ -356,7 +366,7 @@ mod tests {
 
     #[test]
     fn multi_step_plys() {
-        let boards = Bitboards::from_str(
+        let boards = Bitboards::new_from_str(
             r#"
             q0P
             000
@@ -365,15 +375,17 @@ mod tests {
         );
         let board = boards.boards[bitboard_idx(WHITE_QUEEN)];
 
-        let mut plys = board
-            .multi_step_plys_in_dirs(
-                &QUEEN_STEP_DIRS,
-                &boards.blocked_mask_for_color(PieceColor::White),
-                &boards.all_pieces_by_color(PieceColor::Black),
-                boards.boards.as_ptr(),
-                WHITE_QUEEN,
-            )
-            .collect::<BinaryHeap<Ply>>();
+        let mut plys = unsafe {
+            board
+                .multi_step_plys_in_dirs(
+                    &QUEEN_STEP_DIRS,
+                    &boards.blocked_mask_for_color(PieceColor::White),
+                    &boards.all_pieces_by_color(PieceColor::Black),
+                    boards.boards.as_ptr(),
+                    WHITE_QUEEN,
+                )
+                .collect::<BinaryHeap<Ply>>()
+        };
 
         assert_eq!(plys.len(), 6);
         assert!(plys.pop().unwrap().capturing.is_some())
@@ -441,14 +453,14 @@ mod tests {
 
     #[test]
     fn make_ply() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         0
         p
         "#,
         );
 
-        let mut expected = Bitboards::from_str(
+        let mut expected = Bitboards::new_from_str(
             r#"
         p
         0
@@ -469,7 +481,7 @@ mod tests {
 
     #[test]
     fn unmake_ply() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         0
         p
@@ -492,14 +504,14 @@ mod tests {
 
     #[test]
     fn make_capture_ply() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         0P
         p0
         "#,
         );
 
-        let mut expected = Bitboards::from_str(
+        let mut expected = Bitboards::new_from_str(
             r#"
         0p
         00
@@ -521,7 +533,7 @@ mod tests {
 
     #[test]
     fn unmake_capture_ply() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         0
         p
@@ -545,7 +557,7 @@ mod tests {
 
     #[test]
     fn make_en_passant_ply() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         00
         00
@@ -553,7 +565,7 @@ mod tests {
         "#,
         );
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
         00
         p0
@@ -575,7 +587,7 @@ mod tests {
 
     #[test]
     fn unmake_en_passant_ply() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         00
         00
@@ -598,7 +610,7 @@ mod tests {
 
     #[test]
     fn unmake_en_passant_restore_ply() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         00
         00
@@ -606,7 +618,7 @@ mod tests {
         "#,
         );
 
-        let expected = Bitboards::from_str(
+        let expected = Bitboards::new_from_str(
             r#"
         00
         p0
@@ -638,7 +650,7 @@ mod tests {
 
     #[test]
     fn make_ply_visited_count() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         0
         p
@@ -665,7 +677,7 @@ mod tests {
 
     #[test]
     fn unmake_ply_visited_count() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         0
         p
@@ -691,7 +703,7 @@ mod tests {
 
     #[test]
     fn legal_move() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         R0
         r0
@@ -713,7 +725,7 @@ mod tests {
 
     #[test]
     fn illegal_move() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         R0
         r0
@@ -734,7 +746,7 @@ mod tests {
 
     #[test]
     fn make_ply_update_piece_list() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         0
         p
@@ -755,7 +767,7 @@ mod tests {
 
     #[test]
     fn unmake_ply_update_piece_list() {
-        let mut bitboard = Bitboards::from_str(
+        let mut bitboard = Bitboards::new_from_str(
             r#"
         0
         p

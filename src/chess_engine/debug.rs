@@ -142,7 +142,7 @@ fn find_next_ply(
                 game.boards.to_string(),
                 format!(
                     "{}\nTime:\n{}\n\n Nodes visited:\n{}",
-                    ply.to_string(),
+                    ply,
                     work_done.as_millis(),
                     result.2
                 ),
@@ -151,7 +151,7 @@ fn find_next_ply(
         ////////////////////////////////////////////////////////////////////
         } else {
             let board = game.to_string();
-            let info = format!("\n{:?} lost!", game.next_move_by);
+            let info = format!("\n{:?} lost!", 0); // TODO: update game state
             *next_board = NextBoard(Some((board, info)));
             debug_flags.running = false;
         }

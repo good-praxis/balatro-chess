@@ -187,6 +187,7 @@ impl Bitboards {
             meta.nodes_visited += 1;
             self.make_ply(&ply);
             meta.current_tree.push(ply);
+            dbg!(&meta.current_tree, &meta.current_tree.len());
 
             let score = self
                 .quiescence_search(meta, beta.saturating_neg(), alpha.saturating_neg())
@@ -371,14 +372,15 @@ mod tests {
     fn quiescence_search_until_quiet_position() {
         let mut boards = Bitboards::from_str(
             r#"
-            P0P
-            0P0
-            p0p
+            0P00
+            R00R
+            r000
+            r000
             "#,
         );
         let mut meta = SearchMeta::default();
         let _score = boards.quiescence_search(&mut meta, MIN, MAX);
-        assert_eq!(meta.nodes_visited, 8);
+        assert_eq!(meta.nodes_visited, 7);
     }
 
     #[test]

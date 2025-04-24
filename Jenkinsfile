@@ -15,7 +15,7 @@ pipeline {
         stage('Miri') {
             steps {
                 sh "~/.cargo/bin/cargo miri setup"
-                sh "~/.cargo/bin/cargo miri test"
+                sh "MIRIFLAGS='-Zmiri-disable-stacked-borrows' ~/.cargo/bin/cargo miri test"
             }
         }
         stage('Clippy') {

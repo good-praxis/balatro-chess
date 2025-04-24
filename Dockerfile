@@ -12,7 +12,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust
-RUN su - jenkins -c "curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable"
+RUN su - jenkins -c "curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly"
+
+# Install Miri
+RUN su - jenkins -c "/home/jenkins/.cargo/bin/rustup toolchain install nightly --component miri"
+
 
 RUN echo 'export PATH="/home/jenkins/.cargo/bin:$PATH"' > /etc/profile
 

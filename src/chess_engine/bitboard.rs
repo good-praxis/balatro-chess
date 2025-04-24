@@ -746,7 +746,6 @@ mod tests {
         let expect: u16 = 0b1001000000111101;
         let pawns = boards.boards[bitboard_idx(WHITE_PAWN)];
         let column_rep = pawns.as_column_representation();
-        dbg!(format!("{:b}\n{:b}", column_rep, expect));
         assert_eq!(column_rep, expect);
     }
 }

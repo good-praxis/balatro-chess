@@ -186,7 +186,6 @@ impl Bitboards {
             meta.nodes_visited += 1;
             self.make_ply(&ply);
             meta.current_tree.push(ply);
-            dbg!(&meta.current_tree, &meta.current_tree.len());
 
             let score = self
                 .quiescence_search(meta, beta.saturating_neg(), alpha.saturating_neg())

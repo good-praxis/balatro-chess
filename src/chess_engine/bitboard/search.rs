@@ -382,6 +382,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn alpha_beta_search_nodes_visited() {
         let mut boards = Bitboards::new_from_str(
             r#"
@@ -396,6 +397,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn alpha_beta_search_expected_result() {
         let mut boards = Bitboards::new_from_str(
             r#"
@@ -441,6 +443,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(miri))]
     fn iterative_deepening_pv_trim_nodes() {
         let mut boards = Game::default().boards;
 

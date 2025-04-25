@@ -21,7 +21,14 @@ pipeline {
             steps {
                 // The build will fail if rustfmt thinks any changes are
                 // required.
-                sh "~/.cargo/bin/cargo +nightly fmt --all -- --write-mode diff"
+                sh "~/.cargo/bin/cargo +nightly fmt --all"
+            }
+        }
+        stage('Benchmark') {
+            steps {
+                sh "~/.cargo/bin/cargo bench --bench sliding_pieces"
+                sh "~/.cargo/bin/cargo bench --bench search_depth_1"
+                sh "~/.cargo/bin/cargo bench --bench search_depth_3"
             }
         }
         stage('Miri') {

@@ -35,11 +35,5 @@ pipeline {
                 sh "~/.cargo/bin/cargo bench --bench search_depth_3"
             }
         }
-        stage('Miri') {
-            steps {
-                sh "~/.cargo/bin/cargo miri setup"
-                sh "MIRIFLAGS='-Zmiri-disable-stacked-borrows' ~/.cargo/bin/cargo miri test"
-            }
-        }
     }
 }

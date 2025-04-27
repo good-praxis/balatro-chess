@@ -35,5 +35,9 @@ bench = false
 name = "sliding_pieces"
 harness = false
 
+[[bench]]
+name = "stepping_pieces"
+harness = false
+
 [profile.bench]
 debug = true

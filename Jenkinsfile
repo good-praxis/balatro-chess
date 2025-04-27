@@ -26,6 +26,7 @@ pipeline {
         }
         stage('Benchmark') {
             steps {
+                sh "~/.cargo/bin/cargo bench --bench stepping_pieces"
                 sh "~/.cargo/bin/cargo bench --bench sliding_pieces"
                 sh "~/.cargo/bin/cargo bench --bench search_depth_1"
                 sh "~/.cargo/bin/cargo bench --bench search_depth_3"

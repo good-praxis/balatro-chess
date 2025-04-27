@@ -39,5 +39,13 @@ harness = false
 name = "stepping_pieces"
 harness = false
 
+[[bench]]
+name = "make_unmake_no_capture"
+harness = false
+
+[[bench]]
+name = "make_unmake_capture"
+harness = false
+
 [profile.bench]
 debug = true

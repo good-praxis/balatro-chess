@@ -3,8 +3,8 @@ use bevy::prelude::*;
 mod game;
 pub use game::Game;
 
-mod moves;
-mod pieces;
+pub mod moves;
+pub mod pieces;
 
 mod debug;
 use debug::ChessDebugPlugin;

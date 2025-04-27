@@ -28,6 +28,8 @@ pipeline {
             steps {
                 sh "~/.cargo/bin/cargo bench --bench stepping_pieces"
                 sh "~/.cargo/bin/cargo bench --bench sliding_pieces"
+                sh "~/.cargo/bin/cargo bench --bench make_unmake_no_capture"
+                sh "~/.cargo/bin/cargo bench --bench make_unmake_capture"
                 sh "~/.cargo/bin/cargo bench --bench search_depth_1"
                 sh "~/.cargo/bin/cargo bench --bench search_depth_3"
             }
